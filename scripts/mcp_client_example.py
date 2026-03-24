@@ -9,14 +9,19 @@ Usage:
 
 import asyncio
 import json
+from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+ROOT = Path(__file__).resolve().parent.parent
+SERVER_SCRIPT = ROOT / "mcp_server" / "server.py"
+DEFAULT_CSV = ROOT / "data" / "synthetic_fraud_graph_dataset.csv"
 
 SERVER_PARAMS = StdioServerParameters(
     command="python",
-    args=["mcp_server/server.py"],
-    env=None
+    args=[str(SERVER_SCRIPT)],
+    env=None,
+    cwd=str(ROOT),
 )
 
 
@@ -64,7 +69,7 @@ async def main():
             result = await session.call_tool(
                 "run_graph_fraud_detection",
                 arguments={
-                    "csv_path": "data/synthetic_fraud_graph_dataset.csv",
+                    "csv_path": str(DEFAULT_CSV),
                     "clear_db": True
                 }
             )

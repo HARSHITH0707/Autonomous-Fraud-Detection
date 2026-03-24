@@ -1,0 +1,1 @@
+log_id,logged_at,transaction_id,sender,receiver,amount,txn_type,action,final_score,risk_level,ml_score,graph_score,behaviour_score,graph_risk_raw,alerts,anomalies,regulatory_ref,case_reference

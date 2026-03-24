@@ -35,6 +35,7 @@ MODEL_DIR = ROOT / "ml_models"
 DATA_DIR  = ROOT / "data"
 OUT_DIR   = ROOT / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
+sys.path.insert(0, str(ROOT))
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 log = logging.getLogger("fraud-mcp")
@@ -70,6 +71,20 @@ def _get_neo4j():
     except Exception as e:
         log.error(f"Neo4j unavailable: {e}")
         return None
+
+
+# ── Multi-agent orchestration state ────────────────────────────────────────────
+from agents import (
+    TransactionMonitorAgent,
+    BehaviourAnalyserAgent,
+    DecisionEngine,
+    ComplianceLogger,
+)
+
+MONITOR_AGENT = TransactionMonitorAgent()
+BEHAVIOUR_AGENT = BehaviourAnalyserAgent()
+DECISION_ENGINE = DecisionEngine()
+COMPLIANCE_LOGGER = ComplianceLogger(output_dir=str(OUT_DIR))
 
 # ── MCP server ─────────────────────────────────────────────────────────────────
 app = Server("fraud-detection-server")
@@ -233,6 +248,38 @@ async def list_tools() -> list[Tool]:
                 "required": ["transaction"]
             }
         ),
+        Tool(
+            name="process_transaction_autonomous",
+            description=(
+                "Run a full autonomous fraud workflow via MCP: transaction monitor, "
+                "behaviour analysis, optional graph risk, ML ensemble, final decision, "
+                "and compliance logging."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transaction": {
+                        "type": "object",
+                        "description": "Single transaction dict."
+                    },
+                    "account_id": {
+                        "type": "string",
+                        "description": "Optional account ID for graph lookup. Defaults to sender_account."
+                    },
+                    "use_graph": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to include graph-based account risk."
+                    },
+                    "use_ml": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": "Whether to include ML ensemble scoring."
+                    }
+                },
+                "required": ["transaction"]
+            }
+        ),
     ]
 
 
@@ -266,6 +313,9 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
 
         elif name == "run_ensemble_prediction":
             return await _ensemble(arguments)
+
+        elif name == "process_transaction_autonomous":
+            return await _process_transaction_autonomous(arguments)
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
@@ -525,6 +575,84 @@ async def _ensemble(arguments: dict) -> list[TextContent]:
     scores["verdict"] = "FRAUD" if ensemble_score >= 0.5 else "LEGITIMATE"
 
     return [TextContent(type="text", text=json.dumps(scores, indent=2))]
+
+
+async def _process_transaction_autonomous(arguments: dict) -> list[TextContent]:
+    txn = arguments["transaction"]
+    use_graph = arguments.get("use_graph", True)
+    use_ml = arguments.get("use_ml", True)
+
+    txn_id = txn.get("transaction_id", "UNKNOWN")
+    sender_account = txn.get("sender_account")
+    account_id = arguments.get("account_id") or sender_account
+
+    # Agent 01: Transaction monitor
+    monitor_result = MONITOR_AGENT.analyze(txn)
+
+    # Agent 02: Behaviour analyser (stateful profile-based)
+    behaviour_result = BEHAVIOUR_AGENT.analyze(txn)
+
+    # ML ensemble (optional)
+    ml_result = {}
+    if use_ml:
+        ml_text = (await _ensemble({"transaction": txn, "account_id": account_id}))[0].text
+        try:
+            ml_result = json.loads(ml_text)
+        except Exception:
+            ml_result = {"ensemble_error": ml_text}
+
+    # Graph risk (optional)
+    graph_result = {}
+    if use_graph and account_id:
+        graph_text = (await _account_risk({"account_id": account_id}))[0].text
+        try:
+            graph_result = json.loads(graph_text)
+        except Exception:
+            graph_result = {"graph_error": graph_text}
+
+    # Agent 05: Decision engine
+    decision = DECISION_ENGINE.decide(
+        transaction=txn,
+        monitor_result=monitor_result,
+        behaviour_result=behaviour_result,
+        ml_result=ml_result if use_ml else None,
+        graph_result=graph_result if use_graph else None,
+    )
+
+    # Agent 06: Compliance logger
+    compliance_entry = COMPLIANCE_LOGGER.log_decision(
+        transaction=txn,
+        decision=decision,
+        monitor_result=monitor_result,
+        behaviour_result=behaviour_result,
+        ml_result=ml_result if use_ml else None,
+        graph_result=graph_result if use_graph else None,
+    )
+
+    response = {
+        "status": "processed",
+        "transaction_id": txn_id,
+        "account_id": account_id,
+        "pipeline": {
+            "monitor": monitor_result,
+            "behaviour": behaviour_result,
+            "ml": ml_result if use_ml else {"skipped": True},
+            "graph": graph_result if use_graph else {"skipped": True},
+            "decision": decision,
+            "compliance": {
+                "log_id": compliance_entry.get("log_id"),
+                "reportable": compliance_entry.get("regulatory", {}).get("reportable", False),
+                "case_reference": compliance_entry.get("regulatory", {}).get("case_reference"),
+                "log_file": str(COMPLIANCE_LOGGER.log_file),
+            },
+        },
+        "agent_stats": {
+            "decision_engine": DECISION_ENGINE.get_stats(),
+            "compliance": COMPLIANCE_LOGGER.get_stats(),
+            "behaviour_profiles": BEHAVIOUR_AGENT.get_all_profiles_summary(),
+        },
+    }
+    return [TextContent(type="text", text=json.dumps(response, indent=2))]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
