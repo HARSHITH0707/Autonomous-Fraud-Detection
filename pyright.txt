@@ -1,0 +1,58 @@
+c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:47:21 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:56:20 - error: "DiGraph" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:59:18 - error: "circular_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:60:12 - error: "draw_networkx" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:62:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:63:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:64:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:76:21 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:84:20 - error: "DiGraph" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:89:12 - error: "draw_networkx" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:91:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:92:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:93:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:107:21 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:115:20 - error: "DiGraph" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:119:18 - error: "shell_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:121:12 - error: "draw_networkx" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:123:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:124:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:125:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:139:21 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:147:20 - error: "Graph" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:152:18 - error: "shell_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:154:12 - error: "draw_networkx" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:156:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:157:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:158:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:169:16 - error: "DataFrame" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:170:21 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:182:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:183:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:184:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:192:16 - error: "DiGraph" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:218:19 - error: "subplots" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:221:14 - error: "spring_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:223:8 - error: "draw_networkx" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:225:18 - error: "Patch" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:226:18 - error: "Patch" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:227:18 - error: "Patch" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:230:9 - error: "tight_layout" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:231:9 - error: "savefig" is not a known attribute of "None" (reportOptionalMemberAccess)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\graph\visualizations.py:232:9 - error: "close" is not a known attribute of "None" (reportOptionalMemberAccess)
+c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py:26:10 - error: Type "Any | None" is not assignable to declared type "type[Server]"
+    Type "Any | None" is not assignable to type "type[Server]"
+      Type "None" is not assignable to type "type[Server]" (reportAssignmentType)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py:27:16 - error: Type "Any | None" is not assignable to declared type "() -> _AsyncGeneratorContextManager[Never, None]"
+    Type "Any | None" is not assignable to type "() -> _AsyncGeneratorContextManager[Never, None]"
+      Type "None" is not assignable to type "() -> _AsyncGeneratorContextManager[Never, None]" (reportAssignmentType)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py:28:15 - error: Type "Any | None" is not assignable to declared type "type[TextContent]"
+    Type "Any | None" is not assignable to type "type[TextContent]"
+      Type "None" is not assignable to type "type[TextContent]" (reportAssignmentType)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py:29:8 - error: Type "Any | None" is not assignable to declared type "type[Tool]"
+    Type "Any | None" is not assignable to type "type[Tool]"
+      Type "None" is not assignable to type "type[Tool]" (reportAssignmentType)
+  c:\Users\User\python\virtusa\finalProject\Autonomous-Fraud-Detection\mcp_server\server.py:202:34 - error: "Never" is not iterable (reportGeneralTypeIssues)
+47 errors, 0 warnings, 0 informations

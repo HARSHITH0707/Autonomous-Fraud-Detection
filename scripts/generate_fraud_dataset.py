@@ -1,91 +1,115 @@
-"""
-Synthetic Fraud Dataset Generator
-===================================
-Generates synthetic_fraud_graph_dataset.csv for use with the MCP server.
-
-Usage:
-    python scripts/generate_fraud_dataset.py --rows 10000 --fraud-rate 0.05
-"""
+from __future__ import annotations
 
 import argparse
-import random
-import uuid
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def generate(n_rows: int = 10000, fraud_rate: float = 0.05, seed: int = 42) -> pd.DataFrame:
+def generate(rows: int = 5000, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    random.seed(seed)
+    accounts = [f"ACC-{idx:05d}" for idx in range(max(400, rows // 8))]
+    devices = [f"device-{idx:04d}" for idx in range(max(60, rows // 40))]
+    ips = [f"103.{idx % 200}.{(idx * 3) % 200}.{(idx * 7) % 200}" for idx in range(max(90, rows // 35))]
+    start = datetime(2026, 3, 1, 9, 0, 0)
 
-    # Pools
-    n_accounts = max(200, n_rows // 10)
-    n_devices  = max(50,  n_rows // 50)
-    n_ips      = max(80,  n_rows // 40)
+    fraud_ring = ["ACC-RING-01", "ACC-RING-02", "ACC-RING-03", "ACC-RING-04"]
+    mule_chain = ["ACC-MULE-01", "ACC-MULE-02", "ACC-MULE-03", "ACC-MULE-HUB"]
+    hub_senders = [f"ACC-HUB-SRC-{idx:02d}" for idx in range(1, 6)]
+    shared_device = "device-shared-fraud"
 
-    accounts = [f"ACC{i:06d}" for i in range(n_accounts)]
-    devices  = [str(uuid.uuid4())[:13] for _ in range(n_devices)]
-    ips      = [f"192.168.{rng.integers(0,255)}.{rng.integers(1,254)}" for _ in range(n_ips)]
+    rows_out: list[dict] = []
 
-    # Fraud rings — small groups that transact among themselves
-    fraud_accounts = random.sample(accounts, k=int(n_accounts * 0.05))
+    for idx in range(rows):
+        timestamp = start + timedelta(seconds=int(idx * 45))
+        amount = round(float(rng.exponential(2500.0) + 200), 2)
+        sender = str(rng.choice(accounts))
+        receiver = str(rng.choice(accounts))
+        while receiver == sender:
+            receiver = str(rng.choice(accounts))
 
-    rows = []
-    start_time = datetime(2024, 1, 1)
-
-    for i in range(n_rows):
-        is_fraud = rng.random() < fraud_rate
-
-        if is_fraud and fraud_accounts:
-            sender   = random.choice(fraud_accounts)
-            receiver = random.choice(fraud_accounts)
-            while receiver == sender:
-                receiver = random.choice(fraud_accounts)
-            amount = round(float(rng.uniform(5000, 50000)), 2)
-            device = random.choice(devices[:n_devices // 5])   # shared devices
-            ip     = random.choice(ips[:n_ips // 5])           # shared IPs
-        else:
-            sender   = random.choice(accounts)
-            receiver = random.choice(accounts)
-            while receiver == sender:
-                receiver = random.choice(accounts)
-            amount = round(float(rng.exponential(500)), 2)
-            device = random.choice(devices)
-            ip     = random.choice(ips)
-
-        txn_type  = random.choice(["TRANSFER", "PAYMENT", "CASH_OUT", "DEBIT"])
-        timestamp = start_time + timedelta(
-            seconds=int(rng.integers(0, 365 * 24 * 3600))
+        rows_out.append(
+            {
+                "transaction_id": f"TXN-{idx:07d}",
+                "timestamp": timestamp.isoformat(),
+                "sender_account": sender,
+                "receiver_account": receiver,
+                "amount": amount,
+                "transaction_type": str(rng.choice(["UPI", "CARD", "NET_BANKING", "CRYPTO"])),
+                "device_id": str(rng.choice(devices)),
+                "ip_address": str(rng.choice(ips)),
+                "is_fraud": int(amount > 9000 and rng.random() > 0.93),
+            }
         )
 
-        rows.append({
-            "transaction_id":   f"TXN{i:08d}",
-            "timestamp":        timestamp.isoformat(),
-            "sender_account":   sender,
-            "receiver_account": receiver,
-            "amount":           amount,
-            "transaction_type": txn_type,
-            "device_id":        device,
-            "ip_address":       ip,
-            "is_fraud":         int(is_fraud),
-        })
+    base_index = len(rows_out)
 
-    df = pd.DataFrame(rows)
-    out = ROOT / "data" / "synthetic_fraud_graph_dataset.csv"
-    out.parent.mkdir(exist_ok=True)
-    df.to_csv(out, index=False)
-    print(f"Generated {len(df):,} rows ({df['is_fraud'].sum()} fraud) -> {out}")
-    return df
+    for offset in range(len(fraud_ring)):
+        sender = fraud_ring[offset]
+        receiver = fraud_ring[(offset + 1) % len(fraud_ring)]
+        rows_out.append(
+            {
+                "transaction_id": f"TXN-RING-{offset:03d}",
+                "timestamp": (start + timedelta(hours=12, minutes=offset)).isoformat(),
+                "sender_account": sender,
+                "receiver_account": receiver,
+                "amount": 42000 + offset * 1500,
+                "transaction_type": "UPI",
+                "device_id": shared_device,
+                "ip_address": f"196.12.55.{10 + offset}",
+                "is_fraud": 1,
+            }
+        )
+
+    for offset in range(len(mule_chain) - 1):
+        rows_out.append(
+            {
+                "transaction_id": f"TXN-MULE-{offset:03d}",
+                "timestamp": (start + timedelta(hours=13, minutes=offset * 2)).isoformat(),
+                "sender_account": mule_chain[offset],
+                "receiver_account": mule_chain[offset + 1],
+                "amount": 85000 - offset * 2000,
+                "transaction_type": "UPI",
+                "device_id": shared_device if offset < 2 else "device-mule-last",
+                "ip_address": f"196.12.60.{20 + offset}",
+                "is_fraud": 1,
+            }
+        )
+
+    for offset, sender in enumerate(hub_senders):
+        rows_out.append(
+            {
+                "transaction_id": f"TXN-HUB-{offset:03d}",
+                "timestamp": (start + timedelta(hours=14, minutes=offset)).isoformat(),
+                "sender_account": sender,
+                "receiver_account": "ACC-MULE-HUB",
+                "amount": 51000 + offset * 1000,
+                "transaction_type": "NET_BANKING",
+                "device_id": shared_device,
+                "ip_address": f"196.12.70.{30 + offset}",
+                "is_fraud": 1,
+            }
+        )
+
+    frame = pd.DataFrame(rows_out)
+    output = ROOT / "data" / "synthetic_fraud_graph_dataset.csv"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_csv(output, index=False)
+    return frame
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate graph-seeding fraud data with rings, mule chains, and hubs.")
+    parser.add_argument("--rows", type=int, default=5000)
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+    frame = generate(rows=args.rows, seed=args.seed)
+    print(f"generated {len(frame):,} rows with {int(frame['is_fraud'].sum()):,} fraud labels -> {ROOT / 'data' / 'synthetic_fraud_graph_dataset.csv'}")
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("--rows",       type=int,   default=10000)
-    p.add_argument("--fraud-rate", type=float, default=0.05)
-    p.add_argument("--seed",       type=int,   default=42)
-    args = p.parse_args()
-    generate(args.rows, args.fraud_rate, args.seed)
+    main()

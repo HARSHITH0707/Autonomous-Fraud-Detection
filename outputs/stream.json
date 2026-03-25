@@ -1,0 +1,9 @@
+{
+  "events_processed": 500,
+  "decisions": {
+    "BLOCK": 0,
+    "OTP": 0,
+    "ALLOW": 500
+  },
+  "avg_risk_score": 0.0205
+}

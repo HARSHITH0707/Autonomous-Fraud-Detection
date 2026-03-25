@@ -1,0 +1,13 @@
+{
+  "model_name": "xgboost",
+  "features": [
+    "transaction_monitor",
+    "behaviour_analyser",
+    "graph_fraud_detector",
+    "amount_scaled",
+    "device_mismatch",
+    "new_beneficiary",
+    "geo_velocity_scaled",
+    "login_velocity_scaled"
+  ]
+}

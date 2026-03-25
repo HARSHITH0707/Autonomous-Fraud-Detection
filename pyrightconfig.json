@@ -1,0 +1,31 @@
+{
+  "typeCheckingMode": "basic",
+  "venvPath": ".",
+  "venv": "venv",
+  "extraPaths": [
+    ".",
+    "core",
+    "agents"
+  ],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "include": [
+    "agents",
+    "core",
+    "graph",
+    "mcp_server",
+    "ml_models",
+    "orchestration",
+    "services",
+    "streaming",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "venv",
+    "data",
+    "docs",
+    "outputs",
+    "graph/app_original.py"
+  ]
+}

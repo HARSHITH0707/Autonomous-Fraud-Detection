@@ -1,85 +1,126 @@
-"""
-Basic tests for MCP server tool logic.
-Run with: pytest tests/
-"""
-
+import asyncio
 import sys
-import json
-import pickle
-import numpy as np
-import pandas as pd
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-
-# ── ML model tests ─────────────────────────────────────────────────────────────
-
-def test_general_model_exists():
-    path = ROOT / "ml_models" / "model.pkl"
-    assert path.exists(), "model.pkl not found in ml_models/"
-
-
-def test_paysim_model_exists():
-    path = ROOT / "ml_models" / "paysim_model.pkl"
-    assert path.exists(), "paysim_model.pkl not found in ml_models/"
+from core.models import AgentSignal, TransactionEvent
+from core.config import NetworkSettings
+from mcp_server.server import describe_architecture, process_transaction, run_proof_of_concept
+from agents.risk_scorer import RiskScorerAgent
+from orchestration import FraudDetectionNetwork
 
 
-def test_general_model_predict():
-    path = ROOT / "ml_models" / "model.pkl"
-    if not path.exists():
-        return  # skip if model not placed yet
-    with open(path, "rb") as f:
-        model = pickle.load(f)
-
-    dummy = pd.DataFrame([{
-        "amount": 1000.0, "out_degree": 2, "in_degree": 1,
-        "fraud_out": 0, "fraud_in": 0, "shared_device_count": 0,
-        "shared_ip_count": 0, "total_sent": 1000.0,
-        "total_received": 500.0, "avg_sent": 500.0, "total_degree": 3
-    }])
-    numeric = dummy.select_dtypes(include=[np.number])
-    try:
-        probs = model.predict_proba(numeric)
-        assert probs.shape[1] == 2
-        assert 0.0 <= probs[0, 1] <= 1.0
-    except Exception:
-        pass  # model may need different features — adjust as needed
+def build_network(tmp_path: Path) -> FraudDetectionNetwork:
+    settings = NetworkSettings()
+    settings.output_dir = tmp_path
+    settings.model_dir = ROOT / "ml_models"
+    settings.data_dir = ROOT / "data"
+    settings.use_neo4j = False
+    return FraudDetectionNetwork(settings=settings)
 
 
-# ── Visualization tests ────────────────────────────────────────────────────────
-
-def test_viz_empty_rings():
-    """Should handle empty input gracefully."""
-    import io
-    from contextlib import redirect_stdout
-    from graph.visualizations import viz_fraud_rings
-    f = io.StringIO()
-    with redirect_stdout(f):
-        viz_fraud_rings([], "/tmp/test_empty_rings.png")
-    assert "No fraud rings" in f.getvalue()
+def test_architecture_lists_six_agents(tmp_path):
+    network = build_network(tmp_path)
+    architecture = network.architecture()
+    assert len(architecture["agents"]) == 6
+    assert "txn.raw" in architecture["topics"]
+    assert architecture["stack"]["supervised_ml"].startswith("XGBoost")
 
 
-def test_viz_risk_scores():
-    from graph.visualizations import viz_risk_scores
-    sample = [
-        {"account": "ACC001", "fraud_sent": 3, "fraud_recv": 1,
-         "shared_dev": 2, "shared_ip": 0, "risk_score": 10},
-        {"account": "ACC002", "fraud_sent": 1, "fraud_recv": 0,
-         "shared_dev": 0, "shared_ip": 1, "risk_score": 4},
+def test_proof_of_concept_blocks_transaction(tmp_path):
+    network = build_network(tmp_path)
+    result = asyncio.run(network.run_proof_of_concept())
+    assert result["decision"] == "BLOCK"
+    assert result["final_composite_score"] >= network.settings.decision_block_threshold
+    assert result["individual_agent_scores"]["transaction_monitor"] > 0.4
+    assert result["individual_agent_scores"]["behaviour_analyser"] > 0.4
+
+
+def test_process_event_populates_topics(tmp_path):
+    network = build_network(tmp_path)
+    event = network.data_strategy.proof_of_concept_event()
+    result = asyncio.run(network.process_event(event)).to_dict()
+    assert len(result["topics"]["txn.raw"]) == 1
+    assert len(result["topics"]["txn.response"]) >= 2
+    assert result["signals"]["graph_fraud_detector"]["score"] > 0
+    assert Path(result["compliance"]["audit_path"]).exists()
+
+
+def test_mcp_helper_functions_return_expected_payloads():
+    architecture = asyncio.run(describe_architecture())
+    assert "data_strategy" in architecture
+
+    poc = asyncio.run(run_proof_of_concept())
+    assert poc["decision"] == "BLOCK"
+
+    realtime = asyncio.run(
+        process_transaction(
+            {
+                "transaction_id": "TEST-MCP-001",
+                "source": "api",
+                "channel": "card",
+                "event_time": "2026-03-24T18:42:00+05:30",
+                "sender_account": "ACC-PRIMARY",
+                "receiver_account": "ACC-MULE-1",
+                "amount": 92000,
+                "transaction_type": "CARD",
+                "device_id": "device-burner-77",
+                "ip_address": "196.12.55.10",
+                "login_country": "AE",
+                "home_country": "IN",
+                "device_mismatch": True,
+                "geo_velocity_km": 1700,
+                "new_beneficiary": True,
+                "beneficiary_age_days": 0,
+                "login_velocity_10m": 4,
+                "recent_txn_count_5m": 5,
+                "recent_amount_5m": 120000,
+                "account_tenure_days": 420,
+            }
+        )
+    )
+    assert realtime["decision"]["decision"] in {"BLOCK", "OTP", "ALLOW"}
+    assert realtime["risk"]["composite_risk"] >= 0
+
+
+def test_risk_scorer_uses_heuristic_floor_when_model_is_too_low(tmp_path):
+    scorer = RiskScorerAgent(model_dir=tmp_path, block_threshold=0.8, otp_threshold=0.55)
+
+    class FakeLowModel:
+        def predict_proba(self, _frame):
+            return [[0.99, 0.01]]
+
+    scorer.model.model = FakeLowModel()
+    scorer.model.model_name = "fake-low-model"
+
+    event = TransactionEvent(
+        transaction_id="TXN-HIGH-RISK",
+        source="test",
+        channel="upi",
+        event_time="2026-03-25T10:00:00+05:30",
+        sender_account="ACC-PRIMARY",
+        receiver_account="ACC-MULE-1",
+        amount=185000.0,
+        device_id="device-burner-77",
+        ip_address="196.12.55.10",
+        login_country="AE",
+        home_country="IN",
+        device_mismatch=True,
+        geo_velocity_km=2000.0,
+        new_beneficiary=True,
+        beneficiary_age_days=0,
+        login_velocity_10m=4,
+        recent_txn_count_5m=6,
+        recent_amount_5m=231000.0,
+    )
+    signals = [
+        AgentSignal(transaction_id=event.transaction_id, agent_name="transaction_monitor", score=0.74, severity="HIGH"),
+        AgentSignal(transaction_id=event.transaction_id, agent_name="behaviour_analyser", score=1.0, severity="HIGH"),
+        AgentSignal(transaction_id=event.transaction_id, agent_name="graph_fraud_detector", score=0.55, severity="HIGH"),
     ]
-    # Should not raise
-    viz_risk_scores(sample, "/tmp/test_risk_scores.png")
 
-
-# ── Neo4j graph tests (mocked) ─────────────────────────────────────────────────
-
-def test_neo4j_graph_mock():
-    with patch("graph.neo4j_graph.GraphDatabase") as mock_gdb:
-        mock_driver = MagicMock()
-        mock_gdb.driver.return_value = mock_driver
-        from graph.neo4j_graph import Neo4jFraudGraph
-        g = Neo4jFraudGraph("bolt://localhost:7687", "neo4j", "test")
-        assert g.driver is not None
+    result = asyncio.run(scorer.evaluate(event, signals))
+    assert result.composite_risk >= 0.8
+    assert any("safety floor applied" in line for line in result.explanation)

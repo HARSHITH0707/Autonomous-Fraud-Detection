@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fraud Shield Console</title>
+  <link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Multi-Agent Fraud Detection Network</p>
+        <h1>Fraud Shield Console</h1>
+        <p class="lede">Submit transactions, trigger the proof-of-concept fraud path, and watch agent scores, graph signals, and final decisions update live.</p>
+      </div>
+      <div class="hero-metrics">
+        <div class="metric-card">
+          <span>Recent Decisions</span>
+          <strong id="recent-total">0</strong>
+        </div>
+        <div class="metric-card">
+          <span>Average Risk</span>
+          <strong id="avg-risk">0.0000</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Transaction Console</h2>
+          <p>Drive the customer-facing flow and real-time fraud decisioning from a single screen.</p>
+        </div>
+        <form id="txn-form" class="txn-form">
+          <label><span>Transaction ID</span><input name="transaction_id" value="TXN-WEB-001" /></label>
+          <label><span>Channel</span><select name="channel"><option value="upi">UPI</option><option value="card">Card</option><option value="net_banking">Net Banking</option><option value="crypto">Crypto</option></select></label>
+          <label><span>Sender</span><input name="sender_account" value="ACC-PRIMARY" /></label>
+          <label><span>Receiver</span><input name="receiver_account" value="ACC-MERCHANT-001" /></label>
+          <label><span>Amount</span><input name="amount" type="number" step="0.01" value="2500" /></label>
+          <label><span>Device ID</span><input name="device_id" value="device-home-01" /></label>
+          <label><span>IP Address</span><input name="ip_address" value="103.44.12.8" /></label>
+          <label><span>Login Country</span><input name="login_country" value="IN" /></label>
+          <label><span>Home Country</span><input name="home_country" value="IN" /></label>
+          <label><span>Geo Velocity (km)</span><input name="geo_velocity_km" type="number" step="0.01" value="0" /></label>
+          <label><span>Recent Txns (5m)</span><input name="recent_txn_count_5m" type="number" value="1" /></label>
+          <label><span>Recent Amount (5m)</span><input name="recent_amount_5m" type="number" step="0.01" value="2500" /></label>
+          <label><span>Login Attempts (10m)</span><input name="login_velocity_10m" type="number" value="1" /></label>
+          <label class="toggle"><span>Device Mismatch</span><input name="device_mismatch" type="checkbox" /></label>
+          <label class="toggle"><span>New Beneficiary</span><input name="new_beneficiary" type="checkbox" /></label>
+          <label><span>Beneficiary Age (days)</span><input name="beneficiary_age_days" type="number" value="30" /></label>
+          <div class="button-row">
+            <button type="submit" class="primary">Process Transaction</button>
+            <button type="button" id="run-poc" class="accent">Run Suspicious PoC</button>
+            <button type="button" id="replay-stream" class="ghost">Replay 20-Event Stream</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Decision Board</h2>
+          <p>Latest action path, threshold outcome, and decision mix.</p>
+        </div>
+        <div id="decision-banner" class="decision-banner neutral">
+          <span class="decision-label">Awaiting Transaction</span>
+          <strong class="decision-score">0.0000</strong>
+        </div>
+        <div class="decision-grid">
+          <div class="stat-card"><span>ALLOW</span><strong id="count-allow">0</strong></div>
+          <div class="stat-card"><span>OTP</span><strong id="count-otp">0</strong></div>
+          <div class="stat-card"><span>BLOCK</span><strong id="count-block">0</strong></div>
+        </div>
+        <div id="decision-reasons" class="reasons"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Agent Signals</h2>
+          <p>Watch Agent 01, 02, and 03 feed the composite risk scorer.</p>
+        </div>
+        <div id="agent-cards" class="agent-cards"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Live Feed</h2>
+          <p>Recent decisions visible to operations in real time.</p>
+        </div>
+        <div id="live-feed" class="live-feed"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Graph Intel</h2>
+          <p>Fraud rings, mule chains, and shared-device clusters loaded into the graph layer.</p>
+        </div>
+        <div id="graph-overview" class="graph-overview"></div>
+      </section>
+    </main>
+  </div>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

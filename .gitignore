@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.env
+venv/
+data/IEEE-Dataset/
+data/SyntheticFindataset/
+outputs/forensics/
+outputs/*.jsonl
+outputs/*.csv

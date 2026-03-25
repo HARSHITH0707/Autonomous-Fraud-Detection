@@ -1,668 +1,208 @@
-"""
-=============================================================================
-Autonomous Fraud Detection & Response Network — MCP Server
-=============================================================================
-Exposes fraud detection tools via the Model Context Protocol (MCP).
-Combines:
-  • ML Model 1   : General fraud classifier   (model.pkl)
-  • ML Model 2   : PaySim fraud classifier    (paysim_model.pkl)
-  • Graph Model  : Neo4j graph pattern engine (app.py logic)
+# pyre-ignore-all-errors
+from __future__ import annotations
 
-Run:
-    python mcp_server/server.py
-=============================================================================
-"""
-
-import json
-import pickle
-import os
-import sys
 import asyncio
-import logging
+import json
+import sys
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import pandas as pd
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
-from dotenv import load_dotenv
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-# ── paths ─────────────────────────────────────────────────────────────────────
-ROOT      = Path(__file__).resolve().parent.parent
-MODEL_DIR = ROOT / "ml_models"
-DATA_DIR  = ROOT / "data"
-OUT_DIR   = ROOT / "outputs"
-OUT_DIR.mkdir(exist_ok=True)
-sys.path.insert(0, str(ROOT))
+from core.compat import load_dotenv, optional_import, read_csv_records
+from core.config import NetworkSettings
+from core.models import TransactionEvent
+from orchestration import FraudDetectionNetwork
 
-logging.basicConfig(level=logging.INFO, stream=sys.stderr)
-log = logging.getLogger("fraud-mcp")
+pd = optional_import("pandas")
 
-# Load local environment overrides (Neo4j connection, etc.)
+_mcp_server = optional_import("mcp.server")
+_mcp_stdio = optional_import("mcp.server.stdio")
+_mcp_types = optional_import("mcp.types")
+
+Server = getattr(_mcp_server, "Server", None)
+stdio_server = getattr(_mcp_stdio, "stdio_server", None)
+TextContent = getattr(_mcp_types, "TextContent", None)
+Tool = getattr(_mcp_types, "Tool", None)
+
+if Server is None or stdio_server is None or TextContent is None or Tool is None:  # pragma: no cover - lightweight fallback
+    @dataclass(slots=True)
+    class TextContent:
+        type: str
+        text: str
+
+    @dataclass(slots=True)
+    class Tool:
+        name: str
+        description: str
+        inputSchema: dict[str, Any]
+
+    class Server:
+        def __init__(self, _name: str) -> None:
+            self._list_tools = None
+            self._call_tool = None
+
+        def list_tools(self):
+            def decorator(func):
+                self._list_tools = func
+                return func
+
+            return decorator
+
+        def call_tool(self):
+            def decorator(func):
+                self._call_tool = func
+                return func
+
+            return decorator
+
+        def create_initialization_options(self) -> dict[str, Any]:
+            return {}
+
+        async def run(self, *_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("mcp package is not installed")
+
+    @asynccontextmanager
+    async def stdio_server():
+        raise RuntimeError("mcp package is not installed")
+        yield None, None
+
+
 load_dotenv(ROOT / ".env")
 
-# ── load ML models ─────────────────────────────────────────────────────────────
-def _load_model(name: str):
-    path = MODEL_DIR / name
-    if not path.exists():
-        log.warning(f"Model not found: {path}")
-        return None
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-GENERAL_MODEL = _load_model("model.pkl")
-PAYSIM_MODEL  = _load_model("paysim_model.pkl")
-
-log.info(f"General model loaded : {GENERAL_MODEL is not None}")
-log.info(f"PaySim  model loaded : {PAYSIM_MODEL  is not None}")
-
-# ── Neo4j helper ───────────────────────────────────────────────────────────────
-def _get_neo4j():
-    """Lazy import so server starts even without Neo4j installed."""
-    try:
-        sys.path.insert(0, str(ROOT))
-        from graph.neo4j_graph import Neo4jFraudGraph
-        uri  = os.getenv("NEO4J_URI",      "bolt://localhost:7687")
-        user = os.getenv("NEO4J_USER",     "neo4j")
-        pw   = os.getenv("NEO4J_PASSWORD", "frauddetection123")
-        return Neo4jFraudGraph(uri, user, pw)
-    except Exception as e:
-        log.error(f"Neo4j unavailable: {e}")
-        return None
+SETTINGS = NetworkSettings()
+APP = Server("multi-agent-fraud-network")
+_NETWORK: FraudDetectionNetwork | None = None
 
 
-# ── Multi-agent orchestration state ────────────────────────────────────────────
-from agents import (
-    TransactionMonitorAgent,
-    BehaviourAnalyserAgent,
-    DecisionEngine,
-    ComplianceLogger,
-)
+def _network() -> FraudDetectionNetwork:
+    global _NETWORK
+    if _NETWORK is None:
+        _NETWORK = FraudDetectionNetwork(SETTINGS)
+    return _NETWORK
 
-MONITOR_AGENT = TransactionMonitorAgent()
-BEHAVIOUR_AGENT = BehaviourAnalyserAgent()
-DECISION_ENGINE = DecisionEngine()
-COMPLIANCE_LOGGER = ComplianceLogger(output_dir=str(OUT_DIR))
 
-# ── MCP server ─────────────────────────────────────────────────────────────────
-app = Server("fraud-detection-server")
+def _as_text(payload: dict[str, Any]) -> list[TextContent]:
+    return [TextContent(type="text", text=json.dumps(payload, indent=2))]
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TOOL DEFINITIONS
-# ═══════════════════════════════════════════════════════════════════════════════
 
-@app.list_tools()
+async def describe_architecture() -> dict[str, Any]:
+    return _network().architecture()
+
+
+async def process_transaction(transaction: dict[str, Any]) -> dict[str, Any]:
+    event = TransactionEvent.from_dict(transaction)
+    result = await _network().process_event(event)
+    return result.to_dict()
+
+
+async def run_proof_of_concept() -> dict[str, Any]:
+    fresh_network = FraudDetectionNetwork(NetworkSettings())
+    return await fresh_network.run_proof_of_concept()
+
+
+async def replay_paysim_stream(limit: int = 25) -> dict[str, Any]:
+    return await _network().replay_paysim_stream(limit=limit)
+
+
+async def seed_graph_from_csv(csv_path: str, clear_existing: bool = False) -> dict[str, Any]:
+    csv_file = Path(csv_path)
+    if not csv_file.exists():
+        return {"status": "error", "message": f"CSV not found: {csv_path}"}
+    frame = pd.read_csv(csv_file) if pd is not None else read_csv_records(csv_file)
+    graph_backend = _network().graph_backend
+    if clear_existing and hasattr(graph_backend, "clear"):
+        graph_backend.clear()
+    graph_backend.load(frame)
+    return {
+        "status": "seeded",
+        "rows_loaded": len(frame),
+        "rings": graph_backend.query_rings()[:5],
+        "chains": graph_backend.query_chains()[:5],
+        "hubs": graph_backend.query_hubs()[:5],
+    }
+
+
+@APP.list_tools()
 async def list_tools() -> list[Tool]:
     return [
         Tool(
-            name="predict_fraud_general",
-            description=(
-                "Run the general fraud ML classifier on one or more transactions. "
-                "Returns fraud probability and label for each row."
-            ),
+            name="describe_architecture",
+            description="Return the six-agent architecture, Kafka topics, technology stack, and data strategy.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="process_realtime_transaction",
+            description="Run a single transaction through the full multi-agent fraud network and return agent signals, risk, decision, and compliance artefacts.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "transactions": {
-                        "type": "array",
-                        "description": "List of transaction dicts with numeric feature columns.",
-                        "items": {"type": "object"}
-                    }
+                    "transaction": {"type": "object"},
                 },
-                "required": ["transactions"]
-            }
+                "required": ["transaction"],
+            },
         ),
         Tool(
-            name="predict_fraud_paysim",
-            description=(
-                "Run the PaySim-trained ML fraud classifier. "
-                "Best for PaySim-style transaction data. "
-                "Returns fraud probability and predicted label."
-            ),
+            name="run_proof_of_concept",
+            description="Execute the real-world suspicious-login plus mule-chain proof-of-concept scenario.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="replay_paysim_stream",
+            description="Replay PaySim events through the Kafka-style pipeline to validate throughput and outcomes.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "transactions": {
-                        "type": "array",
-                        "description": "List of transaction dicts (PaySim schema).",
-                        "items": {"type": "object"}
-                    }
+                    "limit": {"type": "integer", "default": 25},
                 },
-                "required": ["transactions"]
-            }
+            },
         ),
         Tool(
-            name="run_graph_fraud_detection",
-            description=(
-                "Run the Neo4j graph fraud detection pipeline on a CSV file. "
-                "Detects fraud rings, mule chains, coordinated hubs, and shared devices. "
-                "Saves visualisation PNGs to the outputs/ directory."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "csv_path": {
-                        "type": "string",
-                        "description": "Absolute or relative path to the input CSV file."
-                    },
-                    "clear_db": {
-                        "type": "boolean",
-                        "description": "Whether to clear the Neo4j DB before loading. Default true.",
-                        "default": True
-                    }
-                },
-                "required": ["csv_path"]
-            }
-        ),
-        Tool(
-            name="query_fraud_patterns",
-            description=(
-                "Query specific fraud patterns from the Neo4j graph database. "
-                "Requires the graph to be loaded first via run_graph_fraud_detection."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "pattern": {
-                        "type": "string",
-                        "enum": ["rings", "chains", "hubs", "shared_devices", "risk_scores"],
-                        "description": "Which fraud pattern to query."
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Max results to return. Default 10.",
-                        "default": 10
-                    }
-                },
-                "required": ["pattern"]
-            }
-        ),
-        Tool(
-            name="get_account_risk",
-            description=(
-                "Get the fraud risk profile of a specific account ID from the graph."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "account_id": {
-                        "type": "string",
-                        "description": "The account ID to look up."
-                    }
-                },
-                "required": ["account_id"]
-            }
-        ),
-        Tool(
-            name="generate_visualizations",
-            description=(
-                "Generate all fraud visualisation PNG charts from existing Neo4j data. "
-                "Saves to outputs/ directory. Run after loading graph data."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "output_dir": {
-                        "type": "string",
-                        "description": "Directory to save PNGs. Defaults to outputs/.",
-                        "default": str(OUT_DIR)
-                    }
-                }
-            }
-        ),
-        Tool(
-            name="load_csv_to_graph",
-            description=(
-                "Load a CSV transaction dataset into the Neo4j graph database "
-                "without running detection queries."
-            ),
+            name="seed_graph_from_csv",
+            description="Seed the graph backend from a CSV file for Neo4j-style traversal and fraud-ring detection.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "csv_path": {"type": "string"},
-                    "clear_db": {"type": "boolean", "default": True}
+                    "clear_existing": {"type": "boolean", "default": False},
                 },
-                "required": ["csv_path"]
-            }
-        ),
-        Tool(
-            name="run_ensemble_prediction",
-            description=(
-                "Run both ML models + graph risk score on a transaction and "
-                "return a combined ensemble fraud decision."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "transaction": {
-                        "type": "object",
-                        "description": "Single transaction dict."
-                    },
-                    "account_id": {
-                        "type": "string",
-                        "description": "Account ID to fetch graph risk score."
-                    }
-                },
-                "required": ["transaction"]
-            }
-        ),
-        Tool(
-            name="process_transaction_autonomous",
-            description=(
-                "Run a full autonomous fraud workflow via MCP: transaction monitor, "
-                "behaviour analysis, optional graph risk, ML ensemble, final decision, "
-                "and compliance logging."
-            ),
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "transaction": {
-                        "type": "object",
-                        "description": "Single transaction dict."
-                    },
-                    "account_id": {
-                        "type": "string",
-                        "description": "Optional account ID for graph lookup. Defaults to sender_account."
-                    },
-                    "use_graph": {
-                        "type": "boolean",
-                        "default": True,
-                        "description": "Whether to include graph-based account risk."
-                    },
-                    "use_ml": {
-                        "type": "boolean",
-                        "default": True,
-                        "description": "Whether to include ML ensemble scoring."
-                    }
-                },
-                "required": ["transaction"]
-            }
+                "required": ["csv_path"],
+            },
         ),
     ]
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  TOOL IMPLEMENTATIONS
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.call_tool()
+@APP.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     try:
-        if name == "predict_fraud_general":
-            return await _predict(GENERAL_MODEL, "General", arguments)
-
-        elif name == "predict_fraud_paysim":
-            return await _predict(PAYSIM_MODEL, "PaySim", arguments)
-
-        elif name == "run_graph_fraud_detection":
-            return await _run_graph_pipeline(arguments)
-
-        elif name == "query_fraud_patterns":
-            return await _query_patterns(arguments)
-
-        elif name == "get_account_risk":
-            return await _account_risk(arguments)
-
-        elif name == "generate_visualizations":
-            return await _generate_viz(arguments)
-
-        elif name == "load_csv_to_graph":
-            return await _load_csv(arguments)
-
-        elif name == "run_ensemble_prediction":
-            return await _ensemble(arguments)
-
-        elif name == "process_transaction_autonomous":
-            return await _process_transaction_autonomous(arguments)
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
-    except Exception as e:
-        log.exception(f"Tool {name} failed")
-        return [TextContent(type="text", text=f"ERROR in {name}: {e}")]
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-async def _predict(model, label: str, arguments: dict) -> list[TextContent]:
-    if model is None:
-        return [TextContent(type="text", text=f"{label} model not loaded. Check ml_models/ directory.")]
-
-    txns = arguments["transactions"]
-    df   = pd.DataFrame(txns)
-
-    # Keep only numeric columns. If the model doesn't carry feature names (common
-    # with some estimators), we must match the expected feature count.
-    numeric_df = df.select_dtypes(include=[np.number]).copy()
-
-    try:
-        expected_n = getattr(model, "n_features_in_", None)
-        if expected_n is not None and numeric_df.shape[1] != expected_n:
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Prediction error ({label}): Feature shape mismatch, "
-                    f"expected: {expected_n}, got {numeric_df.shape[1]}. "
-                    f"Provide exactly {expected_n} numeric features."
-                ),
-            )]
-        probs  = model.predict_proba(numeric_df)[:, 1].tolist()
-        labels = model.predict(numeric_df).tolist()
-    except Exception as e:
-        return [TextContent(type="text", text=f"Prediction error ({label}): {e}")]
-
-    results = [
-        {"transaction_index": i, "fraud_probability": round(p, 4), "predicted_label": int(l)}
-        for i, (p, l) in enumerate(zip(probs, labels))
-    ]
-    summary = {
-        "model": label,
-        "total": len(results),
-        "fraud_detected": sum(r["predicted_label"] for r in results),
-        "results": results
-    }
-    return [TextContent(type="text", text=json.dumps(summary, indent=2))]
-
-
-async def _run_graph_pipeline(arguments: dict) -> list[TextContent]:
-    csv_path = arguments["csv_path"]
-    clear_db = arguments.get("clear_db", True)
-
-    if not Path(csv_path).exists():
-        return [TextContent(type="text", text=f"CSV not found: {csv_path}")]
-
-    g = _get_neo4j()
-    if g is None:
-        return [TextContent(type="text", text="Neo4j unavailable. Check connection settings.")]
-
-    try:
-        df = pd.read_csv(csv_path, parse_dates=["timestamp"])
-        if clear_db:
-            g.clear()
-        g.setup_schema()
-        g.load(df)
-
-        rings   = g.query_rings()
-        chains  = g.query_chains()
-        hubs    = g.query_hubs()
-        devices = g.query_shared_devices()
-        risk    = g.query_risk_scores()
-
-        # generate visualizations
-        from graph.visualizations import (
-            viz_fraud_rings, viz_mule_chains, viz_coordinated_hubs,
-            viz_shared_devices, viz_risk_scores, viz_full_network
-        )
-        p = lambda n: str(OUT_DIR / n)
-        viz_fraud_rings(rings,   p("viz_fraud_rings.png"))
-        viz_mule_chains(chains,  p("viz_mule_chains.png"))
-        viz_coordinated_hubs(hubs, p("viz_coordinated_hubs.png"))
-        viz_shared_devices(devices, p("viz_shared_devices.png"))
-        viz_risk_scores(risk,    p("viz_risk_scores.png"))
-        viz_full_network(rings, chains, hubs, p("viz_full_fraud_network.png"))
-
-        summary = {
-            "status": "complete",
-            "rows_loaded": len(df),
-            "fraud_rows": int(df["is_fraud"].sum()),
-            "fraud_rings":   len(rings),
-            "mule_chains":   len(chains),
-            "hubs_found":    len(hubs),
-            "device_clusters": len(devices),
-            "high_risk_accounts": len(risk),
-            "visualizations_saved": str(OUT_DIR)
-        }
-        return [TextContent(type="text", text=json.dumps(summary, indent=2))]
-
-    finally:
-        g.close()
-
-
-async def _query_patterns(arguments: dict) -> list[TextContent]:
-    pattern = arguments["pattern"]
-    limit   = arguments.get("limit", 10)
-    g = _get_neo4j()
-    if g is None:
-        return [TextContent(type="text", text="Neo4j unavailable.")]
-
-    try:
-        query_map = {
-            "rings":          g.query_rings,
-            "chains":         g.query_chains,
-            "hubs":           g.query_hubs,
-            "shared_devices": g.query_shared_devices,
-            "risk_scores":    g.query_risk_scores,
-        }
-        results = query_map[pattern]()[:limit]
-        return [TextContent(type="text", text=json.dumps({"pattern": pattern, "results": results}, indent=2))]
-    finally:
-        g.close()
-
-
-async def _account_risk(arguments: dict) -> list[TextContent]:
-    account_id = arguments["account_id"]
-    g = _get_neo4j()
-    if g is None:
-        return [TextContent(type="text", text="Neo4j unavailable.")]
-    try:
-        rows = g.run("""
-            MATCH (a:Account {account_id: $aid})
-            OPTIONAL MATCH (a)-[o:SENT_TO {is_fraud:1}]->()
-            OPTIONAL MATCH ()-[i:SENT_TO  {is_fraud:1}]->(a)
-            OPTIONAL MATCH (a)-[:USED_DEVICE]->(d:Device)<-[:USED_DEVICE]-(:Account)
-            OPTIONAL MATCH (a)-[:USED_IP   ]->(ip:IP   )<-[:USED_IP   ]-(:Account)
-            WITH a.account_id AS account,
-                 count(DISTINCT o)  AS fraud_sent,
-                 count(DISTINCT i)  AS fraud_recv,
-                 count(DISTINCT d)  AS shared_dev,
-                 count(DISTINCT ip) AS shared_ip
-            RETURN account, fraud_sent, fraud_recv, shared_dev, shared_ip,
-                   (fraud_sent*2 + fraud_recv + shared_dev*3 + shared_ip*2) AS risk_score
-        """, {"aid": account_id})
-        result = rows[0] if rows else {"account": account_id, "message": "Account not found"}
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
-    finally:
-        g.close()
-
-
-async def _generate_viz(arguments: dict) -> list[TextContent]:
-    out = Path(arguments.get("output_dir", str(OUT_DIR)))
-    out.mkdir(exist_ok=True)
-    g = _get_neo4j()
-    if g is None:
-        return [TextContent(type="text", text="Neo4j unavailable.")]
-    try:
-        rings   = g.query_rings()
-        chains  = g.query_chains()
-        hubs    = g.query_hubs()
-        devices = g.query_shared_devices()
-        risk    = g.query_risk_scores()
-
-        from graph.visualizations import (
-            viz_fraud_rings, viz_mule_chains, viz_coordinated_hubs,
-            viz_shared_devices, viz_risk_scores, viz_full_network
-        )
-        p = lambda n: str(out / n)
-        viz_fraud_rings(rings,   p("viz_fraud_rings.png"))
-        viz_mule_chains(chains,  p("viz_mule_chains.png"))
-        viz_coordinated_hubs(hubs, p("viz_coordinated_hubs.png"))
-        viz_shared_devices(devices, p("viz_shared_devices.png"))
-        viz_risk_scores(risk,    p("viz_risk_scores.png"))
-        viz_full_network(rings, chains, hubs, p("viz_full_fraud_network.png"))
-
-        return [TextContent(type="text", text=json.dumps({
-            "status": "done",
-            "files": [str(f) for f in out.glob("viz_*.png")]
-        }, indent=2))]
-    finally:
-        g.close()
-
-
-async def _load_csv(arguments: dict) -> list[TextContent]:
-    csv_path = arguments["csv_path"]
-    clear_db = arguments.get("clear_db", True)
-    if not Path(csv_path).exists():
-        return [TextContent(type="text", text=f"CSV not found: {csv_path}")]
-    g = _get_neo4j()
-    if g is None:
-        return [TextContent(type="text", text="Neo4j unavailable.")]
-    try:
-        df = pd.read_csv(csv_path, parse_dates=["timestamp"])
-        if clear_db:
-            g.clear()
-        g.setup_schema()
-        g.load(df)
-        return [TextContent(type="text", text=json.dumps({
-            "status": "loaded",
-            "rows": len(df),
-            "fraud_rows": int(df["is_fraud"].sum())
-        }, indent=2))]
-    finally:
-        g.close()
-
-
-async def _ensemble(arguments: dict) -> list[TextContent]:
-    txn        = arguments["transaction"]
-    account_id = arguments.get("account_id")
-
-    df = pd.DataFrame([txn])
-    numeric_df = df.select_dtypes(include=[np.number])
-
-    scores = {}
-
-    # ML Model 1
-    if GENERAL_MODEL:
-        try:
-            scores["general_ml_prob"] = round(float(GENERAL_MODEL.predict_proba(numeric_df)[0, 1]), 4)
-        except Exception as e:
-            scores["general_ml_error"] = str(e)
-
-    # ML Model 2
-    if PAYSIM_MODEL:
-        try:
-            scores["paysim_ml_prob"] = round(float(PAYSIM_MODEL.predict_proba(numeric_df)[0, 1]), 4)
-        except Exception as e:
-            scores["paysim_ml_error"] = str(e)
-
-    # Graph risk
-    graph_risk = 0
-    if account_id:
-        g = _get_neo4j()
-        if g:
-            try:
-                rows = g.run(
-                    "MATCH (a:Account {account_id: $aid}) "
-                    "OPTIONAL MATCH (a)-[o:SENT_TO {is_fraud:1}]->() "
-                    "WITH a, count(DISTINCT o) AS fs "
-                    "RETURN (fs*2) AS risk_score",
-                    {"aid": account_id}
+        if name == "describe_architecture":
+            return _as_text(await describe_architecture())
+        if name == "process_realtime_transaction":
+            return _as_text(await process_transaction(arguments["transaction"]))
+        if name == "run_proof_of_concept":
+            return _as_text(await run_proof_of_concept())
+        if name == "replay_paysim_stream":
+            return _as_text(await replay_paysim_stream(limit=int(arguments.get("limit", 25))))
+        if name == "seed_graph_from_csv":
+            return _as_text(
+                await seed_graph_from_csv(
+                    csv_path=arguments["csv_path"],
+                    clear_existing=bool(arguments.get("clear_existing", False)),
                 )
-                graph_risk = rows[0]["risk_score"] if rows else 0
-                scores["graph_risk_score"] = graph_risk
-            finally:
-                g.close()
-
-    # Ensemble decision
-    ml_probs = [v for k, v in scores.items() if k.endswith("_prob")]
-    avg_prob  = float(np.mean(ml_probs)) if ml_probs else 0.5
-    graph_boost = min(graph_risk / 20.0, 0.5)
-    ensemble_score = min(avg_prob + graph_boost * 0.3, 1.0)
-
-    scores["ensemble_fraud_score"] = round(ensemble_score, 4)
-    scores["verdict"] = "FRAUD" if ensemble_score >= 0.5 else "LEGITIMATE"
-
-    return [TextContent(type="text", text=json.dumps(scores, indent=2))]
+            )
+        return _as_text({"status": "error", "message": f"unknown tool: {name}"})
+    except Exception as exc:  # pragma: no cover - surfaced to clients
+        return _as_text({"status": "error", "message": str(exc), "tool": name})
 
 
-async def _process_transaction_autonomous(arguments: dict) -> list[TextContent]:
-    txn = arguments["transaction"]
-    use_graph = arguments.get("use_graph", True)
-    use_ml = arguments.get("use_ml", True)
+async def main() -> None:
+    async with stdio_server() as (reader, writer):
+        await APP.run(reader, writer, APP.create_initialization_options())
 
-    txn_id = txn.get("transaction_id", "UNKNOWN")
-    sender_account = txn.get("sender_account")
-    account_id = arguments.get("account_id") or sender_account
-
-    # Agent 01: Transaction monitor
-    monitor_result = MONITOR_AGENT.analyze(txn)
-
-    # Agent 02: Behaviour analyser (stateful profile-based)
-    behaviour_result = BEHAVIOUR_AGENT.analyze(txn)
-
-    # ML ensemble (optional)
-    ml_result = {}
-    if use_ml:
-        ml_text = (await _ensemble({"transaction": txn, "account_id": account_id}))[0].text
-        try:
-            ml_result = json.loads(ml_text)
-        except Exception:
-            ml_result = {"ensemble_error": ml_text}
-
-    # Graph risk (optional)
-    graph_result = {}
-    if use_graph and account_id:
-        graph_text = (await _account_risk({"account_id": account_id}))[0].text
-        try:
-            graph_result = json.loads(graph_text)
-        except Exception:
-            graph_result = {"graph_error": graph_text}
-
-    # Agent 05: Decision engine
-    decision = DECISION_ENGINE.decide(
-        transaction=txn,
-        monitor_result=monitor_result,
-        behaviour_result=behaviour_result,
-        ml_result=ml_result if use_ml else None,
-        graph_result=graph_result if use_graph else None,
-    )
-
-    # Agent 06: Compliance logger
-    compliance_entry = COMPLIANCE_LOGGER.log_decision(
-        transaction=txn,
-        decision=decision,
-        monitor_result=monitor_result,
-        behaviour_result=behaviour_result,
-        ml_result=ml_result if use_ml else None,
-        graph_result=graph_result if use_graph else None,
-    )
-
-    response = {
-        "status": "processed",
-        "transaction_id": txn_id,
-        "account_id": account_id,
-        "pipeline": {
-            "monitor": monitor_result,
-            "behaviour": behaviour_result,
-            "ml": ml_result if use_ml else {"skipped": True},
-            "graph": graph_result if use_graph else {"skipped": True},
-            "decision": decision,
-            "compliance": {
-                "log_id": compliance_entry.get("log_id"),
-                "reportable": compliance_entry.get("regulatory", {}).get("reportable", False),
-                "case_reference": compliance_entry.get("regulatory", {}).get("case_reference"),
-                "log_file": str(COMPLIANCE_LOGGER.log_file),
-            },
-        },
-        "agent_stats": {
-            "decision_engine": DECISION_ENGINE.get_stats(),
-            "compliance": COMPLIANCE_LOGGER.get_stats(),
-            "behaviour_profiles": BEHAVIOUR_AGENT.get_all_profiles_summary(),
-        },
-    }
-    return [TextContent(type="text", text=json.dumps(response, indent=2))]
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def main():
-    log.info("Starting Fraud Detection MCP Server...")
-    async with stdio_server() as (r, w):
-        await app.run(r, w, app.create_initialization_options())
 
 if __name__ == "__main__":
     asyncio.run(main())

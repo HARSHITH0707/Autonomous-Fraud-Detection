@@ -1,0 +1,28 @@
+{
+  "source_directories": [
+    "."
+  ],
+  "search_path": [
+    ".",
+    "core",
+    "agents",
+    "graph",
+    "orchestration",
+    "ml_models",
+    "streaming"
+  ],
+  "exclude": [
+    "venv",
+    "data",
+    "docs",
+    "outputs",
+    "graph/app_original.py"
+  ],
+  "ignore_all_errors": [
+    "venv",
+    "data",
+    "docs",
+    "outputs",
+    "graph/app_original.py"
+  ]
+}

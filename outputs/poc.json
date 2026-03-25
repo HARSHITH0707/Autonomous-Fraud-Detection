@@ -1,0 +1,433 @@
+{
+  "scenario": {
+    "step_1": "Foreign login from AE with a burner device fingerprint mismatching the trusted handset.",
+    "step_2": "High-value transfer sent to a brand-new beneficiary over UPI.",
+    "step_3": "Graph traversal links the beneficiary to a mule chain and shared device cluster.",
+    "step_4": "Composite XGBoost risk score computed at 0.07.",
+    "step_5": "Decision engine returns ALLOW within the response path.",
+    "step_6": "Compliance logger persists audit, forensic, and report artefacts."
+  },
+  "individual_agent_scores": {
+    "transaction_monitor": 0.74,
+    "behaviour_analyser": 0.77,
+    "graph_fraud_detector": 0.0
+  },
+  "final_composite_score": 0.07,
+  "decision": "ALLOW",
+  "decision_threshold_logic": {
+    "block_if": "score >= 0.8",
+    "otp_if": "0.55 <= score < 0.8",
+    "allow_if": "score < 0.55"
+  },
+  "network_result": {
+    "transaction": {
+      "transaction_id": "POC-FOREIGN-LOGIN-001",
+      "source": "realtime",
+      "channel": "upi",
+      "event_time": "2026-03-24T18:42:00+05:30",
+      "sender_account": "ACC-PRIMARY",
+      "receiver_account": "ACC-MULE-1",
+      "amount": 185000.0,
+      "currency": "INR",
+      "transaction_type": "TRANSFER",
+      "device_id": "device-burner-77",
+      "ip_address": "196.12.55.10",
+      "login_country": "AE",
+      "home_country": "IN",
+      "device_mismatch": true,
+      "geo_velocity_km": 2460.0,
+      "new_beneficiary": true,
+      "beneficiary_age_days": 0,
+      "login_velocity_10m": 4,
+      "recent_txn_count_5m": 6,
+      "recent_amount_5m": 231000.0,
+      "account_tenure_days": 420,
+      "labels": {},
+      "metadata": {
+        "scenario": "foreign_login_large_transfer",
+        "beneficiary_type": "new"
+      }
+    },
+    "signals": {
+      "transaction_monitor": {
+        "transaction_id": "POC-FOREIGN-LOGIN-001",
+        "agent_name": "transaction_monitor",
+        "score": 0.74,
+        "severity": "HIGH",
+        "flags": [
+          "HIGH_AMOUNT",
+          "HIGH_VELOCITY_COUNT",
+          "HIGH_VELOCITY_AMOUNT",
+          "NEW_BENEFICIARY"
+        ],
+        "evidence": {
+          "recent_txn_count_5m": 6,
+          "recent_amount_5m": 231000.0,
+          "sender_account": "ACC-PRIMARY",
+          "receiver_account": "ACC-MULE-1",
+          "amount": 185000.0
+        },
+        "explanation": [
+          "amount 185,000 breaches the high-value band",
+          "6 transactions already observed within 5 minutes",
+          "231,000 moved within the rolling 5 minute window",
+          "beneficiary has not been seen for this sender before"
+        ],
+        "topic": "txn.alert",
+        "processing_ms": 0,
+        "created_at": "2026-03-25T14:12:19.302247+00:00"
+      },
+      "behaviour_analyser": {
+        "transaction_id": "POC-FOREIGN-LOGIN-001",
+        "agent_name": "behaviour_analyser",
+        "score": 0.77,
+        "severity": "HIGH",
+        "flags": [
+          "FOREIGN_LOGIN",
+          "DEVICE_MISMATCH",
+          "IMPOSSIBLE_TRAVEL",
+          "LOGIN_BURST"
+        ],
+        "evidence": {
+          "avg_amount": 185000.0,
+          "std_amount": 0.0,
+          "known_devices": 1,
+          "known_countries": [
+            "AE"
+          ],
+          "isolation_forest_margin": 0.0777
+        },
+        "explanation": [
+          "login country shifted from IN to AE",
+          "device fingerprint does not match the trusted device set",
+          "geo-velocity of 2,460 km indicates impossible travel",
+          "4 login attempts observed within 10 minutes"
+        ],
+        "topic": "txn.alert",
+        "processing_ms": 21,
+        "created_at": "2026-03-25T14:12:19.323677+00:00"
+      },
+      "graph_fraud_detector": {
+        "transaction_id": "POC-FOREIGN-LOGIN-001",
+        "agent_name": "graph_fraud_detector",
+        "score": 0.0,
+        "severity": "LOW",
+        "flags": [],
+        "evidence": {
+          "shared_device_accounts": [],
+          "shared_ip_accounts": [],
+          "receiver_fraud_in_degree": 0,
+          "mule_chain_length": 0,
+          "ring_member_count": 0
+        },
+        "explanation": [],
+        "topic": "txn.scored",
+        "processing_ms": 34,
+        "created_at": "2026-03-25T14:12:19.342232+00:00"
+      }
+    },
+    "risk": {
+      "transaction_id": "POC-FOREIGN-LOGIN-001",
+      "composite_risk": 0.07,
+      "model_name": "xgboost",
+      "component_scores": {
+        "transaction_monitor": 0.74,
+        "behaviour_analyser": 0.77,
+        "graph_fraud_detector": 0.0
+      },
+      "feature_vector": {
+        "transaction_monitor": 0.74,
+        "behaviour_analyser": 0.77,
+        "graph_fraud_detector": 0.0,
+        "amount_scaled": 0.74,
+        "device_mismatch": 1.0,
+        "new_beneficiary": 1.0,
+        "geo_velocity_scaled": 1.0,
+        "login_velocity_scaled": 0.8
+      },
+      "explanation": [
+        "velocity and threshold alerts elevated the transaction monitor contribution",
+        "login, device, and geo anomalies elevated behaviour risk"
+      ],
+      "threshold_block": 0.8,
+      "threshold_otp": 0.55,
+      "processing_ms": 9,
+      "created_at": "2026-03-25T14:12:19.351721+00:00"
+    },
+    "decision": {
+      "transaction_id": "POC-FOREIGN-LOGIN-001",
+      "decision": "ALLOW",
+      "composite_risk": 0.07,
+      "threshold_used": 0.0,
+      "callback_payload": {
+        "transaction_id": "POC-FOREIGN-LOGIN-001",
+        "decision": "ALLOW",
+        "risk_score": 0.07,
+        "channel": "upi",
+        "api_response_ms": 0,
+        "recommended_action": "approve"
+      },
+      "policy_hits": [
+        "behaviour-anomaly",
+        "velocity-threshold"
+      ],
+      "component_scores": {
+        "transaction_monitor": 0.74,
+        "behaviour_analyser": 0.77,
+        "graph_fraud_detector": 0.0
+      },
+      "processing_ms": 0,
+      "created_at": "2026-03-25T14:12:19.351873+00:00"
+    },
+    "compliance": {
+      "transaction_id": "POC-FOREIGN-LOGIN-001",
+      "decision": "ALLOW",
+      "reportable": false,
+      "audit_path": "/app/outputs/forensics/POC-FOREIGN-LOGIN-001.json",
+      "forensic_snapshot": {
+        "policy_hits": [
+          "behaviour-anomaly",
+          "velocity-threshold"
+        ],
+        "risk_score": 0.07,
+        "component_scores": {
+          "transaction_monitor": 0.74,
+          "behaviour_analyser": 0.77,
+          "graph_fraud_detector": 0.0
+        }
+      },
+      "regulatory_references": [],
+      "created_at": "2026-03-25T14:12:19.357857+00:00"
+    },
+    "topics": {
+      "txn.raw": [
+        {
+          "topic": "txn.raw",
+          "offset": 0,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "source": "realtime",
+            "channel": "upi",
+            "event_time": "2026-03-24T18:42:00+05:30",
+            "sender_account": "ACC-PRIMARY",
+            "receiver_account": "ACC-MULE-1",
+            "amount": 185000.0,
+            "currency": "INR",
+            "transaction_type": "TRANSFER",
+            "device_id": "device-burner-77",
+            "ip_address": "196.12.55.10",
+            "login_country": "AE",
+            "home_country": "IN",
+            "device_mismatch": true,
+            "geo_velocity_km": 2460.0,
+            "new_beneficiary": true,
+            "beneficiary_age_days": 0,
+            "login_velocity_10m": 4,
+            "recent_txn_count_5m": 6,
+            "recent_amount_5m": 231000.0,
+            "account_tenure_days": 420,
+            "labels": {},
+            "metadata": {
+              "scenario": "foreign_login_large_transfer",
+              "beneficiary_type": "new"
+            }
+          },
+          "published_at": "2026-03-25T14:12:19.300816+00:00"
+        }
+      ],
+      "txn.scored": [
+        {
+          "topic": "txn.scored",
+          "offset": 0,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "agent_name": "graph_fraud_detector",
+            "score": 0.0,
+            "severity": "LOW",
+            "flags": [],
+            "evidence": {
+              "shared_device_accounts": [],
+              "shared_ip_accounts": [],
+              "receiver_fraud_in_degree": 0,
+              "mule_chain_length": 0,
+              "ring_member_count": 0
+            },
+            "explanation": [],
+            "topic": "txn.scored",
+            "processing_ms": 34,
+            "created_at": "2026-03-25T14:12:19.342232+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.342458+00:00"
+        },
+        {
+          "topic": "txn.scored",
+          "offset": 1,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "composite_risk": 0.07,
+            "model_name": "xgboost",
+            "component_scores": {
+              "transaction_monitor": 0.74,
+              "behaviour_analyser": 0.77,
+              "graph_fraud_detector": 0.0
+            },
+            "feature_vector": {
+              "transaction_monitor": 0.74,
+              "behaviour_analyser": 0.77,
+              "graph_fraud_detector": 0.0,
+              "amount_scaled": 0.74,
+              "device_mismatch": 1.0,
+              "new_beneficiary": 1.0,
+              "geo_velocity_scaled": 1.0,
+              "login_velocity_scaled": 0.8
+            },
+            "explanation": [
+              "velocity and threshold alerts elevated the transaction monitor contribution",
+              "login, device, and geo anomalies elevated behaviour risk"
+            ],
+            "threshold_block": 0.8,
+            "threshold_otp": 0.55,
+            "processing_ms": 9,
+            "created_at": "2026-03-25T14:12:19.351721+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.351814+00:00"
+        }
+      ],
+      "txn.alert": [
+        {
+          "topic": "txn.alert",
+          "offset": 0,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "agent_name": "transaction_monitor",
+            "score": 0.74,
+            "severity": "HIGH",
+            "flags": [
+              "HIGH_AMOUNT",
+              "HIGH_VELOCITY_COUNT",
+              "HIGH_VELOCITY_AMOUNT",
+              "NEW_BENEFICIARY"
+            ],
+            "evidence": {
+              "recent_txn_count_5m": 6,
+              "recent_amount_5m": 231000.0,
+              "sender_account": "ACC-PRIMARY",
+              "receiver_account": "ACC-MULE-1",
+              "amount": 185000.0
+            },
+            "explanation": [
+              "amount 185,000 breaches the high-value band",
+              "6 transactions already observed within 5 minutes",
+              "231,000 moved within the rolling 5 minute window",
+              "beneficiary has not been seen for this sender before"
+            ],
+            "topic": "txn.alert",
+            "processing_ms": 0,
+            "created_at": "2026-03-25T14:12:19.302247+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.342439+00:00"
+        },
+        {
+          "topic": "txn.alert",
+          "offset": 1,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "agent_name": "behaviour_analyser",
+            "score": 0.77,
+            "severity": "HIGH",
+            "flags": [
+              "FOREIGN_LOGIN",
+              "DEVICE_MISMATCH",
+              "IMPOSSIBLE_TRAVEL",
+              "LOGIN_BURST"
+            ],
+            "evidence": {
+              "avg_amount": 185000.0,
+              "std_amount": 0.0,
+              "known_devices": 1,
+              "known_countries": [
+                "AE"
+              ],
+              "isolation_forest_margin": 0.0777
+            },
+            "explanation": [
+              "login country shifted from IN to AE",
+              "device fingerprint does not match the trusted device set",
+              "geo-velocity of 2,460 km indicates impossible travel",
+              "4 login attempts observed within 10 minutes"
+            ],
+            "topic": "txn.alert",
+            "processing_ms": 21,
+            "created_at": "2026-03-25T14:12:19.323677+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.342452+00:00"
+        }
+      ],
+      "txn.response": [
+        {
+          "topic": "txn.response",
+          "offset": 0,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "decision": "ALLOW",
+            "composite_risk": 0.07,
+            "threshold_used": 0.0,
+            "callback_payload": {
+              "transaction_id": "POC-FOREIGN-LOGIN-001",
+              "decision": "ALLOW",
+              "risk_score": 0.07,
+              "channel": "upi",
+              "api_response_ms": 0,
+              "recommended_action": "approve"
+            },
+            "policy_hits": [
+              "behaviour-anomaly",
+              "velocity-threshold"
+            ],
+            "component_scores": {
+              "transaction_monitor": 0.74,
+              "behaviour_analyser": 0.77,
+              "graph_fraud_detector": 0.0
+            },
+            "processing_ms": 0,
+            "created_at": "2026-03-25T14:12:19.351873+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.351927+00:00"
+        },
+        {
+          "topic": "txn.response",
+          "offset": 1,
+          "key": "POC-FOREIGN-LOGIN-001",
+          "payload": {
+            "transaction_id": "POC-FOREIGN-LOGIN-001",
+            "decision": "ALLOW",
+            "reportable": false,
+            "audit_path": "/app/outputs/forensics/POC-FOREIGN-LOGIN-001.json",
+            "forensic_snapshot": {
+              "policy_hits": [
+                "behaviour-anomaly",
+                "velocity-threshold"
+              ],
+              "risk_score": 0.07,
+              "component_scores": {
+                "transaction_monitor": 0.74,
+                "behaviour_analyser": 0.77,
+                "graph_fraud_detector": 0.0
+              }
+            },
+            "regulatory_references": [],
+            "created_at": "2026-03-25T14:12:19.357857+00:00"
+          },
+          "published_at": "2026-03-25T14:12:19.369604+00:00"
+        }
+      ]
+    },
+    "orchestration_engine": "langgraph"
+  }
+}
