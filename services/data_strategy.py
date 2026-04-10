@@ -128,6 +128,146 @@ class DataStrategy:
             "synthetic_graph": "Fraud-ring, mule-chain, and shared-device graph seed for Neo4j traversal tests.",
         }
 
+    @staticmethod
+    def _paysim_row_to_event(row: dict[str, Any], absolute_index: int, base_time: datetime) -> TransactionEvent:
+        amount = safe_float(row.get("amount"))
+        step = safe_int(row.get("step"))
+        sender = str(row.get("nameOrig", ""))
+        is_fraud = safe_int(row.get("isFraud"))
+        risky_destination = is_fraud == 1 and absolute_index % 3 == 0
+        receiver = "ACC-MULE-1" if risky_destination else str(row.get("nameDest", ""))
+        login_country = "AE" if is_fraud == 1 and absolute_index % 2 == 0 else "IN"
+        device_mismatch = bool(is_fraud == 1 and absolute_index % 2 == 0)
+        geo_velocity = 1800.0 if is_fraud == 1 else 0.0
+        login_velocity = 4 if is_fraud == 1 else absolute_index % 3
+        recent_txn_count = 6 if is_fraud == 1 else absolute_index % 5
+        recent_amount = max(amount * 4, 120000.0) if is_fraud == 1 else amount * max(1, absolute_index % 4)
+        beneficiary_age_days = 0 if is_fraud == 1 else absolute_index % 45
+        return TransactionEvent(
+            transaction_id=f"PAYSIM-{absolute_index:06d}",
+            source="paysim",
+            channel=str(row.get("type", "transfer")).lower(),
+            event_time=(base_time + timedelta(hours=step)).isoformat(),
+            sender_account=sender,
+            receiver_account=receiver,
+            amount=amount,
+            currency="INR",
+            transaction_type=str(row.get("type", "TRANSFER")),
+            device_id=f"device-{stable_bucket(sender, 1000):04d}",
+            ip_address=f"10.{stable_bucket(sender, 200)}.{stable_bucket(receiver, 200)}.8",
+            login_country=login_country,
+            home_country="IN",
+            device_mismatch=device_mismatch,
+            geo_velocity_km=geo_velocity,
+            new_beneficiary=bool(is_fraud == 1 or absolute_index % 7 == 0),
+            beneficiary_age_days=beneficiary_age_days,
+            login_velocity_10m=login_velocity,
+            recent_txn_count_5m=recent_txn_count,
+            recent_amount_5m=recent_amount,
+            account_tenure_days=365,
+            labels={"is_fraud": is_fraud},
+            metadata={"stream_source": "paysim"},
+        )
+
+    def _synthetic_replay_stream(self, max_rows: int = 500, start_index: int = 0) -> Iterator[TransactionEvent]:
+        base_time = datetime(2024, 3, 2, 9, 0, 0)
+        for offset in range(max_rows):
+            absolute_index = start_index + offset
+            pattern = absolute_index % 6
+            event_time = (base_time + timedelta(minutes=absolute_index)).isoformat()
+
+            if pattern in {0, 5}:
+                yield TransactionEvent(
+                    transaction_id=f"SIM-{absolute_index:06d}",
+                    source="synthetic-replay",
+                    channel="upi",
+                    event_time=event_time,
+                    sender_account=f"ACC-RING-{(absolute_index % 3) + 1}",
+                    receiver_account="ACC-MULE-1",
+                    amount=185000.0 + float((absolute_index % 4) * 7500),
+                    currency="INR",
+                    transaction_type="TRANSFER",
+                    device_id=f"device-burner-{absolute_index % 9:02d}",
+                    ip_address=f"196.12.55.{10 + (absolute_index % 20)}",
+                    login_country="AE",
+                    home_country="IN",
+                    device_mismatch=True,
+                    geo_velocity_km=2400.0,
+                    new_beneficiary=True,
+                    beneficiary_age_days=0,
+                    login_velocity_10m=4,
+                    recent_txn_count_5m=6,
+                    recent_amount_5m=225000.0,
+                    account_tenure_days=420,
+                    metadata={"stream_source": "synthetic-fallback", "risk_band": "high"},
+                )
+                continue
+
+            if pattern in {1, 4}:
+                yield TransactionEvent(
+                    transaction_id=f"SIM-{absolute_index:06d}",
+                    source="synthetic-replay",
+                    channel="upi",
+                    event_time=event_time,
+                    sender_account=f"ACC-OTP-{absolute_index % 5}",
+                    receiver_account="ACC-MULE-1",
+                    amount=40000.0 + float((absolute_index % 3) * 5000),
+                    currency="INR",
+                    transaction_type="TRANSFER",
+                    device_id=f"device-home-{absolute_index % 4:02d}",
+                    ip_address=f"103.44.{20 + (absolute_index % 5)}.{10 + (absolute_index % 10)}",
+                    login_country="AE",
+                    home_country="IN",
+                    device_mismatch=False,
+                    geo_velocity_km=120.0,
+                    new_beneficiary=True,
+                    beneficiary_age_days=0,
+                    login_velocity_10m=2,
+                    recent_txn_count_5m=2,
+                    recent_amount_5m=55000.0,
+                    account_tenure_days=365,
+                    metadata={"stream_source": "synthetic-fallback", "risk_band": "medium"},
+                )
+                continue
+
+            yield TransactionEvent(
+                transaction_id=f"SIM-{absolute_index:06d}",
+                source="synthetic-replay",
+                channel="upi",
+                event_time=event_time,
+                sender_account="ACC-PRIMARY",
+                receiver_account=f"ACC-KNOWN-{absolute_index % 6}",
+                amount=1800.0 + float((absolute_index % 5) * 250),
+                currency="INR",
+                transaction_type="TRANSFER",
+                device_id="device-home",
+                ip_address="103.44.12.8",
+                login_country="IN",
+                home_country="IN",
+                device_mismatch=False,
+                geo_velocity_km=0.0,
+                new_beneficiary=False,
+                beneficiary_age_days=45,
+                login_velocity_10m=1,
+                recent_txn_count_5m=1,
+                recent_amount_5m=2500.0,
+                account_tenure_days=450,
+                metadata={"stream_source": "synthetic-fallback", "risk_band": "low"},
+            )
+
+    def replay_stream_events(self, max_rows: int = 500, start_index: int = 0) -> tuple[list[TransactionEvent], str]:
+        if self.paysim_path.exists():
+            frame_rows = read_csv_records(self.paysim_path, limit=start_index + max_rows)
+            rows = frame_rows[start_index:start_index + max_rows]
+            if rows:
+                base_time = datetime(2024, 3, 1)
+                return (
+                    [self._paysim_row_to_event(row, start_index + index, base_time) for index, row in enumerate(rows)],
+                    "paysim",
+                )
+
+        return (list(self._synthetic_replay_stream(max_rows=max_rows, start_index=start_index)), "synthetic-fallback")
+
     def supervised_training_frame(self, max_rows: int = 5000) -> Any:
         if not self.ieee_transaction_path.exists():
             return _to_frame([])
@@ -174,44 +314,7 @@ class DataStrategy:
         rows = frame_rows[start_index:start_index + max_rows]
         base_time = datetime(2024, 3, 1)
         for index, row in enumerate(rows):
-            absolute_index = start_index + index
-            amount = safe_float(row.get("amount"))
-            step = safe_int(row.get("step"))
-            sender = str(row.get("nameOrig", ""))
-            is_fraud = safe_int(row.get("isFraud"))
-            risky_destination = is_fraud == 1 and absolute_index % 3 == 0
-            receiver = "ACC-MULE-1" if risky_destination else str(row.get("nameDest", ""))
-            login_country = "AE" if is_fraud == 1 and absolute_index % 2 == 0 else "IN"
-            device_mismatch = bool(is_fraud == 1 and absolute_index % 2 == 0)
-            geo_velocity = 1800.0 if is_fraud == 1 else 0.0
-            login_velocity = 4 if is_fraud == 1 else absolute_index % 3
-            recent_txn_count = 6 if is_fraud == 1 else absolute_index % 5
-            recent_amount = max(amount * 4, 120000.0) if is_fraud == 1 else amount * max(1, absolute_index % 4)
-            beneficiary_age_days = 0 if is_fraud == 1 else absolute_index % 45
-            yield TransactionEvent(
-                transaction_id=f"PAYSIM-{absolute_index:06d}",
-                source="paysim",
-                channel=str(row.get("type", "transfer")).lower(),
-                event_time=(base_time + timedelta(hours=step)).isoformat(),
-                sender_account=sender,
-                receiver_account=receiver,
-                amount=amount,
-                currency="INR",
-                transaction_type=str(row.get("type", "TRANSFER")),
-                device_id=f"device-{stable_bucket(sender, 1000):04d}",
-                ip_address=f"10.{stable_bucket(sender, 200)}.{stable_bucket(receiver, 200)}.8",
-                login_country=login_country,
-                home_country="IN",
-                device_mismatch=device_mismatch,
-                geo_velocity_km=geo_velocity,
-                new_beneficiary=bool(is_fraud == 1 or absolute_index % 7 == 0),
-                beneficiary_age_days=beneficiary_age_days,
-                login_velocity_10m=login_velocity,
-                recent_txn_count_5m=recent_txn_count,
-                recent_amount_5m=recent_amount,
-                account_tenure_days=365,
-                labels={"is_fraud": is_fraud},
-            )
+            yield self._paysim_row_to_event(row, start_index + index, base_time)
 
     def synthetic_graph_seed(self, max_rows: int = 1000) -> Any:
         if self.synthetic_graph_path.exists():

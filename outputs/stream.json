@@ -1,9 +1,10 @@
 {
-  "events_processed": 500,
+  "events_processed": 50,
   "decisions": {
-    "BLOCK": 0,
-    "OTP": 0,
-    "ALLOW": 500
+    "BLOCK": 17,
+    "OTP": 17,
+    "ALLOW": 16
   },
-  "avg_risk_score": 0.0205
+  "avg_risk_score": 0.5843,
+  "stream_source": "synthetic-fallback"
 }

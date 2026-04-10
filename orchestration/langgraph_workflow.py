@@ -20,7 +20,7 @@ from agents import (
 from core.compat import optional_import
 from core.config import NetworkSettings
 from core.models import AgentSignal, DecisionEvent, DecisionType, RiskScoreEvent, TopicName, TransactionEvent
-from graph.neo4j_graph import build_graph_backend
+from graph.neo4j_graph import InMemoryFraudGraph, build_graph_backend
 from services.data_strategy import DataStrategy
 from streaming import InMemoryKafkaBroker
 
@@ -95,6 +95,23 @@ class FraudDetectionNetwork:
         self._bootstrapped = False
         self._circuit_breakers: dict[str, dict[str, Any]] = {}
 
+    def _switch_graph_backend_to_in_memory(self, reason: object, seed_frame: Any | None = None) -> bool:
+        if isinstance(self.graph_backend, InMemoryFraudGraph):
+            return True
+
+        try:
+            fallback_backend = build_graph_backend(use_neo4j=False)
+            fallback_backend.load(seed_frame if seed_frame is not None else self.data_strategy.synthetic_graph_seed())
+        except Exception as exc:
+            log.error("Graph in-memory fallback failed after %s: %s", reason, exc)
+            return False
+
+        log.warning("Switching graph backend to in-memory fallback after %s", reason)
+        self.graph_backend = fallback_backend
+        self.graph_detector.graph_backend = fallback_backend
+        self.settings.use_neo4j = False
+        return True
+
     def bootstrap(self) -> None:
         if self._bootstrapped:
             return
@@ -102,10 +119,12 @@ class FraudDetectionNetwork:
             self.behaviour_analyser.bootstrap(self.data_strategy.bootstrap_history())
         except Exception as exc:
             log.warning("Behaviour Analyser bootstrap failed: %s", exc)
+        graph_seed = self.data_strategy.synthetic_graph_seed()
         try:
-            self.graph_detector.seed_graph(self.data_strategy.synthetic_graph_seed())
+            self.graph_detector.seed_graph(graph_seed)
         except Exception as exc:
             log.warning("Graph Detector bootstrap failed: %s", exc)
+            self._switch_graph_backend_to_in_memory(exc, seed_frame=graph_seed)
         training_frame = self.data_strategy.supervised_training_frame(max_rows=4000)
         is_empty = getattr(training_frame, "empty", None)
         has_training_rows = (is_empty is False) if is_empty is not None else bool(training_frame)
@@ -133,6 +152,13 @@ class FraudDetectionNetwork:
             cb["failures"] = 0
             return result
         except Exception as exc:
+            if default_name == "graph_fraud_detector" and self._switch_graph_backend_to_in_memory(exc):
+                try:
+                    result = await asyncio.wait_for(agent.evaluate(event), timeout=1.0)
+                    cb["failures"] = 0
+                    return result
+                except Exception as fallback_exc:
+                    exc = fallback_exc
             cb["failures"] += 1
             cb["last_failure"] = time.time()
             log.error("Agent %s failed: %s", default_name, exc)
@@ -235,14 +261,16 @@ class FraudDetectionNetwork:
         self.bootstrap()
         decisions = {"BLOCK": 0, "OTP": 0, "ALLOW": 0}
         scores = []
-        for event in self.data_strategy.paysim_stream(max_rows=limit, start_index=120):
+        events, stream_source = self.data_strategy.replay_stream_events(max_rows=limit, start_index=120)
+        for event in events:
             result = await self.process_event(event)
             decisions[result.decision["decision"]] += 1
             scores.append(result.risk["composite_risk"])
         return {
-            "events_processed": limit,
+            "events_processed": len(events),
             "decisions": decisions,
             "avg_risk_score": float(f"{sum(scores) / max(len(scores), 1):.4f}"),
+            "stream_source": stream_source,
         }
 
     def architecture(self) -> dict[str, Any]:

@@ -48,6 +48,39 @@ def test_process_event_populates_topics(tmp_path):
     assert Path(result["compliance"]["audit_path"]).exists()
 
 
+def test_graph_detector_recovers_with_in_memory_fallback(tmp_path):
+    network = build_network(tmp_path)
+
+    class FailingGraphBackend:
+        def load(self, _frame):
+            return None
+
+        def inspect_transaction(self, _event):
+            raise RuntimeError("neo4j auth failed")
+
+    network.graph_backend = FailingGraphBackend()
+    network.graph_detector.graph_backend = network.graph_backend
+
+    event = network.data_strategy.proof_of_concept_event()
+    result = asyncio.run(network.process_event(event)).to_dict()
+
+    assert result["signals"]["graph_fraud_detector"]["score"] > 0
+    assert not any(flag.startswith("EVAL_FAILED") for flag in result["signals"]["graph_fraud_detector"]["flags"])
+
+
+def test_replay_stream_uses_synthetic_fallback_when_paysim_is_missing(tmp_path):
+    network = build_network(tmp_path)
+    network.settings.data_dir = tmp_path
+    network.data_strategy = network.data_strategy.__class__(network.settings)
+
+    result = asyncio.run(network.replay_paysim_stream(limit=20))
+
+    assert result["events_processed"] == 20
+    assert result["stream_source"] == "synthetic-fallback"
+    assert sum(result["decisions"].values()) == 20
+    assert result["avg_risk_score"] > 0
+
+
 def test_mcp_helper_functions_return_expected_payloads():
     architecture = asyncio.run(describe_architecture())
     assert "data_strategy" in architecture

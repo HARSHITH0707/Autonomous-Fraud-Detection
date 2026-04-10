@@ -150,16 +150,18 @@ class DashboardService:
             self.bootstrap()
             decisions = {"ALLOW": 0, "OTP": 0, "BLOCK": 0}
             scores = []
-            for event in self.network.data_strategy.paysim_stream(max_rows=limit, start_index=120):
+            events, stream_source = self.network.data_strategy.replay_stream_events(max_rows=limit, start_index=120)
+            for event in events:
                 result = (await self.network.process_event(event)).to_dict()
                 self._record(result)
                 decisions[result["decision"]["decision"]] += 1
                 scores.append(result["risk"]["composite_risk"])
                 await self._broadcast({"type": "transaction_processed", "payload": result})
             summary = {
-                "events_processed": limit,
+                "events_processed": len(events),
                 "decisions": decisions,
                 "avg_risk_score": round(sum(scores) / max(len(scores), 1), 4),
+                "stream_source": stream_source,
             }
         await self._broadcast({"type": "stream_summary", "payload": summary})
         return summary

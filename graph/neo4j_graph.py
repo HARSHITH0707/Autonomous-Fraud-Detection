@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,8 @@ GraphDatabase = optional_import_attr("neo4j", "GraphDatabase")
 
 log = logging.getLogger(__name__)
 BATCH_SIZE = 500
+NEO4J_CONNECT_TIMEOUT_SECONDS = 1.0
+NEO4J_RETRY_DELAYS_SECONDS = (0.15, 0.35)
 
 
 def _to_frame(rows: list[dict[str, Any]]) -> Any:
@@ -343,7 +346,18 @@ class Neo4jFraudGraph:
         self.uri = uri or os.getenv("NEO4J_URI", "bolt://localhost:7687")
         self.user = user or os.getenv("NEO4J_USER", "neo4j")
         self.password = password or os.getenv("NEO4J_PASSWORD", "frauddetection123")
-        self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+        driver_kwargs = {
+            "connection_timeout": NEO4J_CONNECT_TIMEOUT_SECONDS,
+            "connection_acquisition_timeout": NEO4J_CONNECT_TIMEOUT_SECONDS,
+        }
+        try:
+            self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password), **driver_kwargs)
+        except TypeError:
+            self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
+
+        verifier = getattr(self.driver, "verify_connectivity", None)
+        if callable(verifier):
+            verifier()
 
     def __enter__(self) -> "Neo4jFraudGraph":
         return self
@@ -355,30 +369,28 @@ class Neo4jFraudGraph:
         self.driver.close()
 
     def run(self, cypher: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        for attempt in range(3):
+        for attempt, delay in enumerate((*NEO4J_RETRY_DELAYS_SECONDS, None), start=1):
             try:
                 with self.driver.session() as session:
                     return session.run(cypher, params or {}).data()
             except Exception as e:
-                log.warning("Neo4j transient read error: %s. Retrying %d/3...", e, attempt + 1)
-                if attempt == 2:
+                log.warning("Neo4j transient read error: %s. Retrying %d/3...", e, attempt)
+                if delay is None:
                     raise
-                import time
-                time.sleep(1.0 * (attempt + 1))
+                time.sleep(delay)
         return []
 
     def run_write(self, cypher: str, params: dict[str, Any] | None = None) -> None:
-        for attempt in range(3):
+        for attempt, delay in enumerate((*NEO4J_RETRY_DELAYS_SECONDS, None), start=1):
             try:
                 with self.driver.session() as session:
                     session.execute_write(lambda tx: list(tx.run(cypher, params or {})))
                     return
             except Exception as e:
-                log.warning("Neo4j transient write error: %s. Retrying %d/3...", e, attempt + 1)
-                if attempt == 2:
+                log.warning("Neo4j transient write error: %s. Retrying %d/3...", e, attempt)
+                if delay is None:
                     raise
-                import time
-                time.sleep(1.0 * (attempt + 1))
+                time.sleep(delay)
 
     def clear(self) -> None:
         self.run_write("MATCH (n) DETACH DELETE n")
