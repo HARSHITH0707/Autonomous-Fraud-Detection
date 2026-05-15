@@ -102,13 +102,45 @@ def generate(rows: int = 5000, seed: int = 42) -> pd.DataFrame:
     return frame
 
 
+import sys
+import asyncio
+from core.geo_utils import COUNTRY_COORDS
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+async def seed_mongo_history():
+    """Seed MongoDB with account login history for Impossible Travel demos."""
+    from core.config import NetworkSettings
+    from core.db_service import MongoDBService
+    
+    settings = NetworkSettings()
+    db = MongoDBService(settings.mongodb_uri, settings.mongodb_db)
+    
+    # 1. ACC-PRIMARY logged in from India 10 minutes ago
+    # Coordinates for IN: 20.59, 78.96
+    ten_mins_ago = datetime.utcnow() - timedelta(minutes=10)
+    await db.record_login("ACC-PRIMARY", "IN", 20.59, 78.96, timestamp=ten_mins_ago)
+    
+    # 2. ACC-MULE-01 logged in from USA 2 hours ago
+    two_hours_ago = datetime.utcnow() - timedelta(hours=2)
+    await db.record_login("ACC-MULE-01", "US", 37.09, -95.71, timestamp=two_hours_ago)
+    
+    print(f"Seeded MongoDB history for demo accounts at {settings.mongodb_uri}")
+    await db.close()
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate graph-seeding fraud data with rings, mule chains, and hubs.")
     parser.add_argument("--rows", type=int, default=5000)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed-mongo", action="store_true", help="Seed MongoDB history for demo.")
     args = parser.parse_args()
-    frame = generate(rows=args.rows, seed=args.seed)
-    print(f"generated {len(frame):,} rows with {int(frame['is_fraud'].sum()):,} fraud labels -> {ROOT / 'data' / 'synthetic_fraud_graph_dataset.csv'}")
+
+    if args.seed_mongo:
+        asyncio.run(seed_mongo_history())
+    else:
+        frame = generate(rows=args.rows, seed=args.seed)
+        print(f"generated {len(frame):,} rows with {int(frame['is_fraud'].sum()):,} fraud labels -> {ROOT / 'data' / 'synthetic_fraud_graph_dataset.csv'}")
 
 
 if __name__ == "__main__":

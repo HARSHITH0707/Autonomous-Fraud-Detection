@@ -23,6 +23,7 @@ from core.models import AgentSignal, DecisionEvent, DecisionType, RiskScoreEvent
 from graph.neo4j_graph import InMemoryFraudGraph, build_graph_backend
 from services.data_strategy import DataStrategy
 from streaming import InMemoryKafkaBroker
+from core.db_service import MongoDBService
 
 _langgraph = optional_import("langgraph.graph")
 END = getattr(_langgraph, "END", None)
@@ -71,6 +72,7 @@ class FraudDetectionNetwork:
     def __init__(self, settings: NetworkSettings | None = None, broker: InMemoryKafkaBroker | None = None) -> None:
         self.settings = settings or NetworkSettings()
         self.broker = broker or InMemoryKafkaBroker()
+        self.db_service = MongoDBService(self.settings.mongodb_uri, self.settings.mongodb_db)
         self.data_strategy = DataStrategy(self.settings)
         self.graph_backend = build_graph_backend(
             use_neo4j=self.settings.use_neo4j,
@@ -79,7 +81,7 @@ class FraudDetectionNetwork:
             password=self.settings.neo4j_password,
         )
         self.transaction_monitor = TransactionMonitorAgent()
-        self.behaviour_analyser = BehaviourAnalyserAgent()
+        self.behaviour_analyser = BehaviourAnalyserAgent(db_service=self.db_service)
         self.graph_detector = GraphFraudDetectorAgent(self.graph_backend)
         self.risk_scorer = RiskScorerAgent(
             model_dir=self.settings.model_dir,
@@ -90,7 +92,7 @@ class FraudDetectionNetwork:
             block_threshold=self.settings.decision_block_threshold,
             otp_threshold=self.settings.decision_otp_threshold,
         )
-        self.compliance_logger = ComplianceLoggerAgent(self.settings.output_dir)
+        self.compliance_logger = ComplianceLoggerAgent(self.settings.output_dir, db_service=self.db_service)
         self.orchestration_engine = "langgraph" if StateGraph is not None else "sequential-fallback"
         self._bootstrapped = False
         self._circuit_breakers: dict[str, dict[str, Any]] = {}

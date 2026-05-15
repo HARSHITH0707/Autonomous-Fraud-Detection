@@ -11,6 +11,8 @@ from typing import Any, Iterable
 from core.compat import LRUCache, optional_import_attr
 
 from core.models import AgentSignal, TopicName, TransactionEvent
+from core.geo_utils import calculate_travel_velocity, is_impossible_travel, COUNTRY_COORDS
+from datetime import datetime
 
 IsolationForest = optional_import_attr("sklearn.ensemble", "IsolationForest")
 
@@ -42,9 +44,11 @@ class BehaviourProfile:
 class BehaviourAnalyserAgent:
     """
     Agent 02: login, device, and geo-behaviour anomaly detection.
+    Now includes Impossible Travel detection using MongoDB persistence.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db_service=None) -> None:
+        self.db_service = db_service
         self.profiles: LRUCache[str, BehaviourProfile] = LRUCache(maxsize=100000)
         self.model: Any | None = (
             IsolationForest(
@@ -96,6 +100,32 @@ class BehaviourAnalyserAgent:
         explanation: list[str] = []
         score = 0.0
 
+        # --- NEW: Impossible Travel Logic (Persistent) ---
+        if self.db_service:
+            last_login = await self.db_service.get_last_login(event.sender_account)
+            if last_login:
+                dist_km, velocity_kmh = calculate_travel_velocity(
+                    last_login["country"], last_login["timestamp"],
+                    event.login_country, datetime.fromisoformat(event.event_time)
+                )
+                if is_impossible_travel(velocity_kmh):
+                    flags.append("IMPOSSIBLE_TRAVEL")
+                    score += 0.35  # High impact
+                    explanation.append(
+                        f"Impossible travel: {velocity_kmh:.0f} km/h detected between "
+                        f"{last_login['country']} and {event.login_country}."
+                    )
+                    # Override event velocity for the ML model
+                    event.geo_velocity_km = velocity_kmh
+            
+            # Record current login for future checks
+            # Note: For demo simplicity, we assume country centroid coordinates
+            coords = COUNTRY_COORDS.get(event.login_country, (0.0, 0.0))
+            await self.db_service.record_login(
+                event.sender_account, event.login_country, 
+                coords[0], coords[1], datetime.fromisoformat(event.event_time)
+            )
+
         if event.login_country and event.login_country != event.home_country:
             flags.append("FOREIGN_LOGIN")
             score += 0.2
@@ -116,7 +146,8 @@ class BehaviourAnalyserAgent:
             score += 0.14
             explanation.append("geography does not match the established login pattern")
 
-        if event.geo_velocity_km >= 900:
+        # Keep legacy manual check as fallback if score hasn't been boosted yet
+        if event.geo_velocity_km >= 900 and "IMPOSSIBLE_TRAVEL" not in flags:
             flags.append("IMPOSSIBLE_TRAVEL")
             score += 0.22
             explanation.append(f"geo-velocity of {event.geo_velocity_km:,.0f} km indicates impossible travel")
@@ -168,6 +199,7 @@ class BehaviourAnalyserAgent:
                 "known_devices": len(profile.devices),
                 "known_countries": list(profile.countries.keys()),
                 "isolation_forest_margin": float(f"{anomaly_score:.4f}"),
+                "calculated_velocity_kmh": event.geo_velocity_km if "IMPOSSIBLE_TRAVEL" in flags else 0.0
             },
             explanation=explanation,
             topic=topic,

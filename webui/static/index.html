@@ -8,6 +8,13 @@
 </head>
 <body>
   <div class="app-shell">
+    <div class="system-status">
+      <div class="status-item"><span class="dot green"></span> MongoDB</div>
+      <div class="status-item"><span class="dot green"></span> Neo4j</div>
+      <div class="status-item"><span class="dot green"></span> Kafka</div>
+      <button id="sign-out" class="ghost small">Sign Out</button>
+    </div>
+
     <header class="hero">
       <div>
         <p class="eyebrow">Multi-Agent Fraud Detection Network</p>
@@ -25,6 +32,10 @@
         </div>
       </div>
     </header>
+
+    <div id="alert-container" class="alert-container">
+      <!-- Special alerts like Impossible Travel will be injected here -->
+    </div>
 
     <main class="grid">
       <section class="panel">

@@ -130,101 +130,71 @@ tests/                 Network and MCP tests
 webui/                 Static dashboard assets
 ```
 
-## Quick Start
+## Setup for Hackathon Testing
 
-1. Install dependencies
+To enable the production-grade authentication and persistence layers, follow these steps.
 
+### 1. Prerequisites
+- **Docker & Docker Compose**
+- **Python 3.11+**
+- **Firebase Project**: Create a free project at [console.firebase.google.com](https://console.firebase.google.com/).
+
+### 2. Local Environment Setup
+Install the necessary Python libraries for local scripts (seeding, training):
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Copy environment defaults
+### 3. Firebase Configuration
+The system uses Firebase for secure JWT authentication.
+1. **Frontend Config**: In Firebase Console, add a **Web App**. Copy the config values into your `.env` file (see `.env.example`).
+2. **Backend Config**: Go to **Project Settings > Service accounts**, click **Generate new private key**, download the JSON, rename it to `firebase-service-account.json`, and place it in the project root.
+3. **Enable Auth**: In Firebase Console, go to **Build > Authentication** and enable **Email/Password** and **Google**.
 
-```bash
-cp .env.example .env
-```
+### 4. MongoDB & Persistence
+MongoDB is used to store login history for "Impossible Travel" detection.
+1. **Start MongoDB**: It is included in the `docker-compose.yml`.
+2. **Seed History**: To test "Impossible Travel" immediately, seed the database with demo history:
+   ```bash
+   python scripts/generate_fraud_dataset.py --seed-mongo
+   ```
+3. **Database UI**: Monitor stored logins and decisions at `http://localhost:8081` (User: `admin`, Pass: `pass`).
 
-3. Generate graph seed data if needed
-
-```bash
-python scripts/generate_fraud_dataset.py --rows 5000
-```
-
-4. Run the proof-of-concept scenario
-
-```bash
-python scripts/run_pipeline.py --mode poc
-```
-
-5. Replay a PaySim stream
-
-```bash
-python scripts/run_pipeline.py --mode stream --limit 50
-```
-
-6. Start the browser-facing dashboard
-
-```bash
-uvicorn api.app:app --reload
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8000
-```
-
-7. Start the MCP server when needed for internal tooling
-
-```bash
-python mcp_server/server.py
-```
-
-## Docker Compose
-
-`docker-compose.yml` provisions:
-
-- Apache Kafka
-- Neo4j
-- FastAPI web dashboard
-- MCP server as an optional tools profile
-
-Use:
-
+### 5. Running the Full Stack
+Use Docker Compose to launch Kafka, Neo4j, MongoDB, and the FastAPI Dashboard:
 ```bash
 docker compose up --build
 ```
+Then open: [http://localhost:8000](http://localhost:8000)
 
-Then open:
+---
 
+## 🚀 Hackathon "WOW" Features
+
+### 🚩 Impossible Travel Detection
+The `BehaviourAnalyserAgent` now cross-references every login against MongoDB. 
+- **The Scenario**: If a user logs in from India and then from the US 10 minutes later, the system calculates the velocity. 
+- **The Alert**: A high-impact animated alert will appear on the dashboard, and the transaction will be blocked based on physical impossibility.
+
+### 🔐 Multi-Provider Auth
+The dashboard is protected by Firebase. You can sign up with a real email or use Google Sign-In to demonstrate enterprise-grade security.
+
+### 📊 Real-Time Decision Feed
+All decisions are dual-written to local JSONL logs and MongoDB. The "Live Feed" on the dashboard fetches these in real-time via WebSockets.
+
+---
+
+## Repository Layout
 ```text
-http://localhost:8000
+agents/                Six fraud agents (BehaviourAnalyser updated for Geo-Velocity)
+core/                  Shared settings, DB services, and Geo-utils
+graph/                 Neo4j and local graph backends
+api/                   FastAPI application with Firebase JWT Middleware
+webui/                 Premium Dashboard (HTML/CSS/JS)
+scripts/               Seeding and pipeline runners
+docker-compose.yml     Orchestrates Kafka, Neo4j, MongoDB, and Web-App
 ```
-
-Optional MCP tools container:
-
-```bash
-docker compose --profile tools up --build mcp-server
-```
-
-Training and demo runs inside the same container image:
-
-```bash
-docker compose run --rm web-app python scripts/train_models.py
-docker compose run --rm web-app python scripts/run_pipeline.py --mode poc --output outputs/poc.json
-docker compose run --rm web-app python scripts/run_pipeline.py --mode stream --limit 50 --output outputs/stream.json
-```
-
-## Outputs
-
-The pipeline writes:
-
-- `outputs/compliance_log.jsonl`
-- `outputs/fraud_report.csv`
-- `outputs/forensics/<transaction_id>.json`
 
 ## Notes
-
-- The local test path uses an in-memory Kafka broker and in-memory graph backend.
-- The production path swaps those for Apache Kafka and Neo4j with no agent-level API change.
-- XGBoost, LangGraph, and Neo4j are optional at import time so local tests can run without external services.
+- **Demo Mode**: If Firebase keys are missing from `.env`, the frontend will automatically switch to a "Demo Mode" for basic testing, but real JWT verification will be disabled.
+- **Persistence**: Compliance logs and forensic artefacts are persisted to `outputs/` and the MongoDB `transaction_decisions` collection.

@@ -23,6 +23,9 @@ class NetworkSettings:
     use_neo4j: bool = field(default_factory=lambda: os.getenv("USE_NEO4J", "false").lower() == "true")
     decision_block_threshold: float = field(default_factory=lambda: float(os.getenv("BLOCK_THRESHOLD", "0.8")))
     decision_otp_threshold: float = field(default_factory=lambda: float(os.getenv("OTP_THRESHOLD", "0.55")))
+    mongodb_uri: str = field(default_factory=lambda: os.getenv("MONGODB_URI", "mongodb://localhost:27017"))
+    mongodb_db: str = field(default_factory=lambda: os.getenv("MONGODB_DB", "fraud_detection"))
+    firebase_project_id: str = field(default_factory=lambda: os.getenv("FIREBASE_PROJECT_ID", ""))
 
     def __post_init__(self) -> None:
         self.data_dir = Path(os.getenv("DATA_DIR", self.root_dir / "data"))

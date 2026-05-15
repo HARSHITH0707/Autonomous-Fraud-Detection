@@ -12,11 +12,13 @@ from core.models import AgentSignal, ComplianceRecord, DecisionEvent, RiskScoreE
 class ComplianceLoggerAgent:
     """
     Agent 06: audit, regulatory, and forensic logging.
+    Now includes MongoDB persistence for real-time dashboard tracking.
     """
 
-    def __init__(self, output_dir: str | Path) -> None:
+    def __init__(self, output_dir: str | Path, db_service=None) -> None:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.db_service = db_service
         self.log_file = self.output_dir / "compliance_log.jsonl"
         self.report_file = self.output_dir / "fraud_report.csv"
         self.audit_dir = self.output_dir / "forensics"
@@ -98,6 +100,9 @@ class ComplianceLoggerAgent:
                         "|".join(regulatory_references),
                     ]
                 )
+
+            if self.db_service:
+                asyncio.create_task(self.db_service.store_decision(record.to_dict()))
 
             return record
 

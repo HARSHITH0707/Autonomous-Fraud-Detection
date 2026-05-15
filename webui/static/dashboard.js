@@ -1,14 +1,47 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+// Firebase Config (Must match login.html)
+const firebaseConfig = {
+  apiKey: "AIzaSyClCYZnnlzZRZwcqYfurZT6Pa8tRSHfhUs",
+  authDomain: "fraud-shield-663a9.firebaseapp.com",
+  projectId: "fraud-shield-663a9",
+  storageBucket: "fraud-shield-663a9.firebasestorage.app",
+  messagingSenderId: "923454719714",
+  appId: "1:923454719714:web:6a55b0155ca9eddabdc0bb"
+};
+
+const isDemoMode = firebaseConfig.apiKey === "YOUR_API_KEY";
+
+let app, auth;
+if (!isDemoMode) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+}
+
 const state = {
   recentRuns: [],
   latest: null,
+  userToken: null
 };
 
-function byId(id) {
-  return document.getElementById(id);
-}
+// ... helper functions ...
+function byId(id) { return document.getElementById(id); }
+function fixed(value, digits = 4) { return Number(value || 0).toFixed(digits); }
 
-function fixed(value, digits = 4) {
-  return Number(value || 0).toFixed(digits);
+function renderAlert(title, body) {
+  const container = byId("alert-container");
+  const alert = document.createElement("div");
+  alert.className = "alert-card";
+  alert.innerHTML = `
+    <div>
+      <span class="alert-title">🚨 ${title}</span>
+      <span class="alert-body">${body}</span>
+    </div>
+    <button class="ghost small" onclick="this.parentElement.remove()">Dismiss</button>
+  `;
+  container.prepend(alert);
+  setTimeout(() => alert.remove(), 8000);
 }
 
 function bannerClass(decision) {
@@ -18,57 +51,23 @@ function bannerClass(decision) {
   return "neutral";
 }
 
-function readTransactionForm() {
-  const form = byId("txn-form");
-  const data = new FormData(form);
-  return {
-    transaction_id: data.get("transaction_id"),
-    source: "web",
-    channel: data.get("channel"),
-    sender_account: data.get("sender_account"),
-    receiver_account: data.get("receiver_account"),
-    amount: Number(data.get("amount")),
-    currency: "INR",
-    transaction_type: String(data.get("channel")).toUpperCase(),
-    device_id: data.get("device_id"),
-    ip_address: data.get("ip_address"),
-    login_country: data.get("login_country"),
-    home_country: data.get("home_country"),
-    device_mismatch: form.elements.device_mismatch.checked,
-    geo_velocity_km: Number(data.get("geo_velocity_km")),
-    new_beneficiary: form.elements.new_beneficiary.checked,
-    beneficiary_age_days: Number(data.get("beneficiary_age_days")),
-    login_velocity_10m: Number(data.get("login_velocity_10m")),
-    recent_txn_count_5m: Number(data.get("recent_txn_count_5m")),
-    recent_amount_5m: Number(data.get("recent_amount_5m")),
-    account_tenure_days: 420,
-  };
-}
-
-function renderSummary(snapshot) {
-  byId("recent-total").textContent = snapshot.recent_total ?? 0;
-  byId("avg-risk").textContent = fixed(snapshot.avg_risk_score ?? 0);
-  byId("count-allow").textContent = snapshot.counts?.ALLOW ?? 0;
-  byId("count-otp").textContent = snapshot.counts?.OTP ?? 0;
-  byId("count-block").textContent = snapshot.counts?.BLOCK ?? 0;
-  state.recentRuns = snapshot.recent_runs ?? [];
-  if (snapshot.latest) {
-    renderLatest(snapshot.latest);
-  }
-  renderFeed();
-}
-
 function renderLatest(run) {
   state.latest = run;
-  const decision = run.decision.decision;
+  const decision = run.decision.decision || run.decision;
   const banner = byId("decision-banner");
   banner.className = `decision-banner ${bannerClass(decision)}`;
   banner.querySelector(".decision-label").textContent = `${decision} Decision`;
-  banner.querySelector(".decision-score").textContent = fixed(run.risk.composite_risk);
+  banner.querySelector(".decision-score").textContent = fixed(run.risk?.composite_risk || run.composite_risk);
+
+  const behaviourSignal = run.signals?.behaviour_analyser;
+  if (behaviourSignal && behaviourSignal.flags.includes("IMPOSSIBLE_TRAVEL")) {
+    const velocity = behaviourSignal.evidence.calculated_velocity_kmh;
+    renderAlert("CRITICAL FRAUD: Impossible Travel", `Velocity of ${fixed(velocity, 0)} km/h detected. Physically impossible travel between login points.`);
+  }
 
   const reasons = byId("decision-reasons");
   reasons.innerHTML = "";
-  (run.risk.explanation || ["No escalations"]).forEach((reason) => {
+  (run.risk?.explanation || run.explanation || ["No escalations"]).forEach((reason) => {
     const item = document.createElement("div");
     item.className = "reason-pill";
     item.textContent = reason;
@@ -77,7 +76,7 @@ function renderLatest(run) {
 
   const cards = byId("agent-cards");
   cards.innerHTML = "";
-  Object.values(run.signals).forEach((signal) => {
+  Object.values(run.signals || {}).forEach((signal) => {
     const flags = (signal.flags || [])
       .map((flag) => `<span class="flag">${flag}</span>`)
       .join("");
@@ -96,9 +95,137 @@ function renderLatest(run) {
   });
 }
 
+async function fetchJson(url, options = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (state.userToken) {
+    headers["Authorization"] = `Bearer ${state.userToken}`;
+  }
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401) {
+    window.location.href = "/login";
+  }
+  return await response.json();
+}
+
+async function bootDashboard() {
+  // Load initial state
+  renderSummary(await fetchJson("/api/dashboard/summary"));
+  try {
+      renderGraphOverview(await fetchJson("/api/graph/overview"));
+  } catch(e) { console.warn("Graph overview skipped", e); }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === "snapshot") {
+      renderSummary(message.payload);
+    } else if (message.type === "transaction_processed") {
+      state.recentRuns.unshift(message.payload);
+      state.recentRuns = state.recentRuns.slice(0, 40);
+      renderSummary({
+        counts: {
+          ALLOW: state.recentRuns.filter((item) => (item.decision.decision || item.decision) === "ALLOW").length,
+          OTP: state.recentRuns.filter((item) => (item.decision.decision || item.decision) === "OTP").length,
+          BLOCK: state.recentRuns.filter((item) => (item.decision.decision || item.decision) === "BLOCK").length,
+        },
+        recent_total: state.recentRuns.length,
+        avg_risk_score: state.recentRuns.reduce((sum, item) => sum + (item.risk?.composite_risk || item.composite_risk), 0) / Math.max(state.recentRuns.length, 1),
+        latest: message.payload,
+        recent_runs: state.recentRuns,
+      });
+    }
+  });
+
+  byId("sign-out").addEventListener("click", () => {
+    if (isDemoMode) {
+      localStorage.removeItem("demo_auth");
+      window.location.href = "/login";
+    } else {
+      signOut(auth).then(() => window.location.href = "/login");
+    }
+  });
+
+  byId("txn-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const result = await fetchJson("/api/transactions/process", {
+      method: "POST",
+      body: JSON.stringify(readTransactionForm()),
+    });
+    renderLatest(result);
+  });
+
+  byId("run-poc").addEventListener("click", async () => {
+    const result = await fetchJson("/api/transactions/poc", { method: "POST" });
+    renderLatest(result.network_result);
+  });
+
+  byId("replay-stream").addEventListener("click", async () => {
+    await fetchJson("/api/transactions/replay", {
+      method: "POST",
+      body: JSON.stringify({ limit: 20 }),
+    });
+  });
+}
+
+async function init() {
+  if (isDemoMode) {
+    if (!localStorage.getItem("demo_auth")) {
+      window.location.href = "/login";
+      return;
+    }
+    state.userToken = "demo-token";
+    bootDashboard();
+  } else {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "/login";
+      } else {
+        state.userToken = await user.getIdToken();
+        bootDashboard();
+      }
+    });
+  }
+}
+
+function readTransactionForm() {
+  const form = byId("txn-form");
+  const data = new FormData(form);
+  return {
+    transaction_id: data.get("transaction_id"),
+    sender_account: data.get("sender_account"),
+    receiver_account: data.get("receiver_account"),
+    amount: Number(data.get("amount")),
+    transaction_type: data.get("channel").toUpperCase(),
+    device_id: data.get("device_id"),
+    ip_address: data.get("ip_address"),
+    login_country: data.get("login_country"),
+    home_country: data.get("home_country"),
+    device_mismatch: form.elements.device_mismatch.checked,
+    geo_velocity_km: Number(data.get("geo_velocity_km")),
+    new_beneficiary: form.elements.new_beneficiary.checked,
+    beneficiary_age_days: Number(data.get("beneficiary_age_days")),
+    login_velocity_10m: Number(data.get("login_velocity_10m")),
+    recent_txn_count_5m: Number(data.get("recent_txn_count_5m")),
+  };
+}
+
+function renderSummary(snapshot) {
+  byId("recent-total").textContent = snapshot.recent_total ?? 0;
+  byId("avg-risk").textContent = fixed(snapshot.avg_risk_score ?? 0);
+  byId("count-allow").textContent = snapshot.counts?.ALLOW ?? 0;
+  byId("count-otp").textContent = snapshot.counts?.OTP ?? 0;
+  byId("count-block").textContent = snapshot.counts?.BLOCK ?? 0;
+  state.recentRuns = snapshot.recent_runs ?? [];
+  if (snapshot.latest) {
+    renderLatest(snapshot.latest);
+  }
+  renderFeed();
+}
+
 function renderFeed() {
   const feed = byId("live-feed");
-  const runs = [...state.recentRuns].reverse();
+  const runs = state.recentRuns;
   feed.innerHTML = "";
   if (!runs.length) {
     feed.innerHTML = `<div class="live-item"><div class="live-meta">No transactions processed yet.</div></div>`;
@@ -107,17 +234,18 @@ function renderFeed() {
   runs.forEach((run) => {
     const item = document.createElement("article");
     item.className = "live-item";
+    const decision = run.decision.decision || run.decision;
     item.innerHTML = `
       <div class="live-row">
         <div>
           <strong>${run.transaction.transaction_id}</strong>
           <div class="live-meta">${run.transaction.sender_account} → ${run.transaction.receiver_account}</div>
         </div>
-        <span class="decision-chip ${run.decision.decision}">${run.decision.decision}</span>
+        <span class="decision-chip ${decision}">${decision}</span>
       </div>
       <div class="live-row">
-        <div class="live-meta">${run.transaction.channel.toUpperCase()} · INR ${Number(run.transaction.amount).toLocaleString()}</div>
-        <div class="live-meta">Risk ${fixed(run.risk.composite_risk)}</div>
+        <div class="live-meta">${run.transaction.transaction_type} · INR ${Number(run.transaction.amount).toLocaleString()}</div>
+        <div class="live-meta">Risk ${fixed(run.risk?.composite_risk || run.composite_risk)}</div>
       </div>
     `;
     item.addEventListener("click", () => renderLatest(run));
@@ -126,6 +254,7 @@ function renderFeed() {
 }
 
 function renderGraphOverview(graph) {
+  if (!graph) return;
   const container = byId("graph-overview");
   container.innerHTML = "";
   const sections = [
@@ -143,76 +272,6 @@ function renderGraphOverview(graph) {
       <div class="graph-body">${top ? formatter(top) : "No linked fraud structures available yet."}</div>
     `;
     container.appendChild(card);
-  });
-}
-
-async function fetchJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  return await response.json();
-}
-
-async function init() {
-  renderSummary(await fetchJson("/api/dashboard/summary"));
-  renderGraphOverview(await fetchJson("/api/graph/overview"));
-
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
-  socket.addEventListener("message", (event) => {
-    const message = JSON.parse(event.data);
-    if (message.type === "snapshot") {
-      renderSummary(message.payload);
-    } else if (message.type === "transaction_processed") {
-      const run = {
-        transaction: message.payload.transaction,
-        signals: message.payload.signals,
-        risk: message.payload.risk,
-        decision: message.payload.decision,
-        compliance: message.payload.compliance,
-      };
-      state.recentRuns.push(run);
-      state.recentRuns = state.recentRuns.slice(-40);
-      renderSummary({
-        counts: {
-          ALLOW: state.recentRuns.filter((item) => item.decision.decision === "ALLOW").length,
-          OTP: state.recentRuns.filter((item) => item.decision.decision === "OTP").length,
-          BLOCK: state.recentRuns.filter((item) => item.decision.decision === "BLOCK").length,
-        },
-        recent_total: state.recentRuns.length,
-        avg_risk_score: state.recentRuns.reduce((sum, item) => sum + item.risk.composite_risk, 0) / Math.max(state.recentRuns.length, 1),
-        latest: run,
-        recent_runs: state.recentRuns,
-      });
-    }
-  });
-
-  byId("txn-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const result = await fetchJson("/api/transactions/process", {
-      method: "POST",
-      body: JSON.stringify(readTransactionForm()),
-    });
-    renderLatest({
-      transaction: result.transaction,
-      signals: result.signals,
-      risk: result.risk,
-      decision: result.decision,
-      compliance: result.compliance,
-    });
-  });
-
-  byId("run-poc").addEventListener("click", async () => {
-    const result = await fetchJson("/api/transactions/poc", { method: "POST" });
-    renderLatest(result.network_result);
-  });
-
-  byId("replay-stream").addEventListener("click", async () => {
-    await fetchJson("/api/transactions/replay", {
-      method: "POST",
-      body: JSON.stringify({ limit: 20 }),
-    });
   });
 }
 
