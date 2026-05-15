@@ -38,6 +38,7 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: frauddetection123
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MONGODB_URI: mongodb://mongodb:27017
       USE_NEO4J: "true"
       PYTHONPATH: /app
     volumes:
@@ -60,6 +61,7 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: frauddetection123
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MONGODB_URI: mongodb://mongodb:27017
       USE_NEO4J: "true"
       PYTHONPATH: /app
     volumes:

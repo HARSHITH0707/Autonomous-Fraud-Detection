@@ -12,7 +12,7 @@ from core.compat import LRUCache, optional_import_attr
 
 from core.models import AgentSignal, TopicName, TransactionEvent
 from core.geo_utils import calculate_travel_velocity, is_impossible_travel, COUNTRY_COORDS
-from datetime import datetime
+from datetime import datetime, timezone
 
 IsolationForest = optional_import_attr("sklearn.ensemble", "IsolationForest")
 
@@ -103,10 +103,26 @@ class BehaviourAnalyserAgent:
         # --- NEW: Impossible Travel Logic (Persistent) ---
         if self.db_service:
             last_login = await self.db_service.get_last_login(event.sender_account)
+            
+            from core.geo_utils import get_ip_location
+            # Fetch real-time coordinates using library
+            curr_lat, curr_lng = await get_ip_location(event.ip_address)
+            if curr_lat is None or curr_lng is None:
+                # Fallback to centroid if IP lookup fails (or is private)
+                coords = COUNTRY_COORDS.get(event.login_country, (0.0, 0.0))
+                curr_lat, curr_lng = coords[0], coords[1]
+
             if last_login:
+                prev_lat = last_login.get("lat", 0.0)
+                prev_lng = last_login.get("lng", 0.0)
+                
+                from core.geo_utils import _ensure_utc
+                prev_time = _ensure_utc(last_login["timestamp"])
+                curr_time = _ensure_utc(datetime.fromisoformat(event.event_time.replace("Z", "+00:00")))
+                
                 dist_km, velocity_kmh = calculate_travel_velocity(
-                    last_login["country"], last_login["timestamp"],
-                    event.login_country, datetime.fromisoformat(event.event_time)
+                    prev_lat, prev_lng, prev_time,
+                    curr_lat, curr_lng, curr_time
                 )
                 if is_impossible_travel(velocity_kmh):
                     flags.append("IMPOSSIBLE_TRAVEL")
@@ -118,12 +134,14 @@ class BehaviourAnalyserAgent:
                     # Override event velocity for the ML model
                     event.geo_velocity_km = velocity_kmh
             
-            # Record current login for future checks
-            # Note: For demo simplicity, we assume country centroid coordinates
-            coords = COUNTRY_COORDS.get(event.login_country, (0.0, 0.0))
+            # Fetch existing profile to carry forward the name
+            profile_doc = await self.db_service.get_account_profile(event.sender_account)
+            existing_name = profile_doc.get("name") if profile_doc else None
             await self.db_service.record_login(
-                event.sender_account, event.login_country, 
-                coords[0], coords[1], datetime.fromisoformat(event.event_time)
+                event.sender_account, event.login_country,
+                curr_lat, curr_lng,
+                _ensure_utc(datetime.fromisoformat(event.event_time.replace("Z", "+00:00"))),
+                name=existing_name,
             )
 
         if event.login_country and event.login_country != event.home_country:
@@ -187,6 +205,19 @@ class BehaviourAnalyserAgent:
         profile.update(event)
         severity = "HIGH" if score >= 0.6 else "MEDIUM" if score >= 0.3 else "LOW"
         topic = TopicName.TXN_ALERT.value if score >= 0.45 else TopicName.TXN_SCORED.value
+
+        # Fetch display name + login count for the Live Feed
+        display_name = None
+        login_count = None
+        if self.db_service:
+            try:
+                profile_doc = await self.db_service.get_account_profile(event.sender_account)
+                if profile_doc:
+                    display_name = profile_doc.get("name")
+                    login_count = profile_doc.get("login_count")
+            except Exception:
+                pass
+
         return AgentSignal(
             transaction_id=event.transaction_id,
             agent_name="behaviour_analyser",
@@ -199,7 +230,9 @@ class BehaviourAnalyserAgent:
                 "known_devices": len(profile.devices),
                 "known_countries": list(profile.countries.keys()),
                 "isolation_forest_margin": float(f"{anomaly_score:.4f}"),
-                "calculated_velocity_kmh": event.geo_velocity_km if "IMPOSSIBLE_TRAVEL" in flags else 0.0
+                "calculated_velocity_kmh": event.geo_velocity_km if "IMPOSSIBLE_TRAVEL" in flags else 0.0,
+                "display_name": display_name,
+                "login_count": login_count,
             },
             explanation=explanation,
             topic=topic,

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -31,31 +31,45 @@ class MongoDBService:
             logger.error(f"Failed to fetch login history for {account_id}: {e}")
             return None
 
-    async def record_login(self, account_id: str, country: str, lat: float, lng: float, timestamp: Optional[datetime] = None):
-        """Update or insert the latest login location for an account."""
+    async def record_login(self, account_id: str, country: str, lat: float, lng: float, timestamp: Optional[datetime] = None, name: Optional[str] = None):
+        """Update or insert the latest login location for an account, incrementing login count."""
         if timestamp is None:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
         
         try:
+            update: Dict[str, Any] = {
+                "$set": {
+                    "country": country,
+                    "lat": lat,
+                    "lng": lng,
+                    "timestamp": timestamp,
+                },
+                "$inc": {"login_count": 1},
+                "$setOnInsert": {"account_id": account_id},
+            }
+            if name:
+                update["$set"]["name"] = name
             await self.logins.update_one(
                 {"account_id": account_id},
-                {
-                    "$set": {
-                        "country": country,
-                        "lat": lat,
-                        "lng": lng,
-                        "timestamp": timestamp
-                    }
-                },
+                update,
                 upsert=True
             )
         except PyMongoError as e:
             logger.error(f"Failed to record login for {account_id}: {e}")
 
+    async def get_account_profile(self, account_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch display name and login count for an account."""
+        try:
+            doc = await self.logins.find_one({"account_id": account_id}, {"name": 1, "login_count": 1, "_id": 0})
+            return doc
+        except PyMongoError as e:
+            logger.error(f"Failed to fetch profile for {account_id}: {e}")
+            return None
+
     async def store_decision(self, result: Dict[str, Any]):
         """Persist a full transaction decision result."""
         try:
-            result["created_at"] = datetime.utcnow()
+            result["created_at"] = datetime.now(timezone.utc)
             await self.decisions.insert_one(result)
         except PyMongoError as e:
             logger.error(f"Failed to store transaction decision: {e}")

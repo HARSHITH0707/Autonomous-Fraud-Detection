@@ -123,7 +123,8 @@ def test_risk_scorer_uses_heuristic_floor_when_model_is_too_low(tmp_path):
 
     class FakeLowModel:
         def predict_proba(self, _frame):
-            return [[0.99, 0.01]]
+            import numpy as np
+            return np.array([[0.99, 0.01]])
 
     scorer.model.model = FakeLowModel()
     scorer.model.model_name = "fake-low-model"

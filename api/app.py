@@ -62,6 +62,12 @@ class TransactionRequest(BaseModel):
     login_velocity_10m: int = Field(default=1)
     recent_txn_count_5m: int = Field(default=1)
 
+
+class ReplayRequest(BaseModel):
+    limit: int = Field(default=20)
+
+
+class DashboardService:
     def __init__(self, network: FraudDetectionNetwork) -> None:
         self.network = network
         self.db = network.db_service
@@ -131,7 +137,7 @@ class TransactionRequest(BaseModel):
         }
 
     async def process(self, payload: dict[str, Any]) -> dict[str, Any]:
-        event = TransactionEvent(**payload)
+        event = TransactionEvent.from_dict(payload)
         sender = event.sender_account or "unknown"
         async with self._get_lock(sender):
             result = await self.network.process_event(event)
@@ -163,10 +169,11 @@ def create_app() -> FastAPI:
 
     # Auth Dependency
     async def get_current_user(request: Request):
-        if not firebase_ready:
+        # Allow bypass for demo-token or if firebase is not fully ready
+        auth_header = request.headers.get("Authorization")
+        if auth_header == "Bearer demo-token" or not firebase_ready:
             return {"uid": "dev-user", "email": "dev@example.com"}
             
-        auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Unauthorized")
             
@@ -175,6 +182,9 @@ def create_app() -> FastAPI:
             decoded_token = auth.verify_id_token(token)
             return decoded_token
         except Exception:
+            # Fallback for dev ease during hackathon if token is 'demo-token'
+            if token == "demo-token":
+                return {"uid": "dev-user", "email": "dev@example.com"}
             raise HTTPException(status_code=401, detail="Invalid token")
 
     @app.get("/", response_class=HTMLResponse)
@@ -196,9 +206,31 @@ def create_app() -> FastAPI:
             "neo4j": "connected" if settings.use_neo4j else "disabled"
         }
 
+    @app.get("/status")
+    async def status():
+        return await health()
+
     @app.get("/api/dashboard/summary")
     async def dashboard_summary():
-        return await dashboard.get_summary()
+        try:
+            return await dashboard.get_summary()
+        except Exception as e:
+            log.exception("Summary failed")
+            return {"counts": {"ALLOW": 0, "OTP": 0, "BLOCK": 0}, "recent_total": 0, "avg_risk_score": 0.0, "recent_runs": []}
+
+    @app.get("/api/graph/overview")
+    async def graph_overview():
+        try:
+            backend = network.graph_backend
+            return {
+                "rings": backend.query_rings(limit=10),
+                "chains": backend.query_chains(limit=10),
+                "hubs": backend.query_hubs(limit=10),
+                "shared_devices": backend.query_shared_devices(limit=10),
+            }
+        except Exception as e:
+            log.exception("Graph overview failed")
+            return {"rings": [], "chains": [], "hubs": [], "shared_devices": []}
 
     @app.post("/api/transactions/process")
     async def process_transaction(request: TransactionRequest, user=Depends(get_current_user)):
@@ -206,28 +238,54 @@ def create_app() -> FastAPI:
 
     @app.post("/api/transactions/poc")
     async def run_poc(user=Depends(get_current_user)):
-        result = await network.run_proof_of_concept()
-        # The ComplianceLogger already handles DB storage in result.network_result
-        await dashboard.broadcast({"type": "transaction_processed", "payload": result["network_result"]})
-        return result
+        try:
+            result = await network.run_proof_of_concept()
+            # The ComplianceLogger already handles DB storage in result["network_result"]
+            await dashboard.broadcast({"type": "transaction_processed", "payload": result["network_result"]})
+            return result
+        except Exception as e:
+            log.exception("PoC failed")
+            raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/api/transactions/replay")
-    async def replay_stream(limit: int = 20, user=Depends(get_current_user)):
-        return await network.replay_paysim_stream(limit=limit)
+    async def replay_stream(req: ReplayRequest, user=Depends(get_current_user)):
+        # We manually loop here to broadcast each result live to the UI
+        events, source = network.data_strategy.replay_stream_events(max_rows=req.limit, start_index=120)
+        results = []
+        for event in events:
+            run_result = await network.process_event(event)
+            as_dict = run_result.to_dict(mask_sensitive=True)
+            results.append(as_dict)
+            # Broadcast to all live dashboard sockets
+            await dashboard.broadcast({"type": "transaction_processed", "payload": as_dict})
+            # Small delay to make the live feed look 'streaming'
+            await asyncio.sleep(0.2)
+            
+        return {"events_processed": len(results), "stream_source": source}
 
     @app.websocket("/ws/dashboard")
     async def websocket_endpoint(websocket: WebSocket, token: Optional[str] = None):
+        log.info(f"WebSocket connection attempt with token: {token}")
         if firebase_ready:
-            if not token:
+            # Allow bypass for demo-token during hackathon
+            if token == "demo-token":
+                log.info("WebSocket bypass: demo-token used.")
+                pass 
+            elif not token:
+                log.warning("WebSocket rejected: No token provided.")
                 await websocket.close(code=4001)
                 return
-            try:
-                auth.verify_id_token(token)
-            except Exception:
-                await websocket.close(code=4001)
-                return
+            else:
+                try:
+                    auth.verify_id_token(token)
+                    log.info("WebSocket auth: Firebase token verified.")
+                except Exception as e:
+                    log.warning(f"WebSocket rejected: Invalid token - {e}")
+                    await websocket.close(code=4001)
+                    return
                 
         await websocket.accept()
+        log.info("WebSocket connected and accepted.")
         dashboard._sockets.add(websocket)
         try:
             # Send initial snapshot

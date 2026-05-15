@@ -3,14 +3,18 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.compat import LRUCache
 from core.models import AgentSignal, TopicName, TransactionEvent
 
 
 def _parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    value = value.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 class TransactionMonitorAgent:

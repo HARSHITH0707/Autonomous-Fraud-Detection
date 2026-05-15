@@ -88,6 +88,10 @@
     </div>
     
     <div id="error-msg" class="error-msg"></div>
+    
+    <div style="margin-top: 16px;">
+      <button id="demo-bypass" class="ghost" style="width: 100%; border: 1px dashed rgba(255,255,255,0.2);">Continue in Demo Mode (Bypass Auth)</button>
+    </div>
   </div>
 
   <!-- Firebase SDKs -->
@@ -107,7 +111,13 @@
 
     const loginForm = document.getElementById('login-form');
     const googleBtn = document.getElementById('google-login');
+    const demoBtn = document.getElementById('demo-bypass');
     const errorDiv = document.getElementById('error-msg');
+
+    demoBtn.addEventListener('click', () => {
+      localStorage.setItem("demo_auth", "true");
+      window.location.href = "/";
+    });
 
     if (firebaseConfig.apiKey === "YOUR_API_KEY") {
       // --- DEMO MODE BYPASS ---

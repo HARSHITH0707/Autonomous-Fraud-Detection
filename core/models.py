@@ -136,6 +136,10 @@ class ComplianceRecord:
     audit_path: str
     forensic_snapshot: dict[str, Any]
     regulatory_references: list[str]
+    sender_account: str = ""
+    receiver_account: str = ""
+    amount: float = 0.0
+    transaction_type: str = ""
     created_at: str = field(default_factory=utc_now_iso)
 
     def to_dict(self) -> dict[str, Any]:

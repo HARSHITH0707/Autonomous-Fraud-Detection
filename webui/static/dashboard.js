@@ -11,12 +11,17 @@ const firebaseConfig = {
   appId: "1:923454719714:web:6a55b0155ca9eddabdc0bb"
 };
 
-const isDemoMode = firebaseConfig.apiKey === "YOUR_API_KEY";
+let isDemoMode = firebaseConfig.apiKey === "YOUR_API_KEY" || localStorage.getItem("demo_auth") === "true";
 
 let app, auth;
 if (!isDemoMode) {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } catch (err) {
+    console.warn("Firebase initialization failed, falling back to Demo Mode:", err);
+    isDemoMode = true;
+  }
 }
 
 const state = {
@@ -52,22 +57,23 @@ function bannerClass(decision) {
 }
 
 function renderLatest(run) {
+  if (!run) return;
   state.latest = run;
-  const decision = run.decision.decision || run.decision;
+  const decision = run.decision?.decision || run.decision || "UNKNOWN";
   const banner = byId("decision-banner");
   banner.className = `decision-banner ${bannerClass(decision)}`;
   banner.querySelector(".decision-label").textContent = `${decision} Decision`;
-  banner.querySelector(".decision-score").textContent = fixed(run.risk?.composite_risk || run.composite_risk);
+  banner.querySelector(".decision-score").textContent = fixed(run.risk?.composite_risk || run.composite_risk || 0);
 
   const behaviourSignal = run.signals?.behaviour_analyser;
-  if (behaviourSignal && behaviourSignal.flags.includes("IMPOSSIBLE_TRAVEL")) {
-    const velocity = behaviourSignal.evidence.calculated_velocity_kmh;
+  if (behaviourSignal && behaviourSignal.flags?.includes("IMPOSSIBLE_TRAVEL")) {
+    const velocity = behaviourSignal.evidence?.calculated_velocity_kmh || 0;
     renderAlert("CRITICAL FRAUD: Impossible Travel", `Velocity of ${fixed(velocity, 0)} km/h detected. Physically impossible travel between login points.`);
   }
 
   const reasons = byId("decision-reasons");
   reasons.innerHTML = "";
-  (run.risk?.explanation || run.explanation || ["No escalations"]).forEach((reason) => {
+  (run.risk?.explanation || run.explanation || ["No escalations recorded"]).forEach((reason) => {
     const item = document.createElement("div");
     item.className = "reason-pill";
     item.textContent = reason;
@@ -76,19 +82,29 @@ function renderLatest(run) {
 
   const cards = byId("agent-cards");
   cards.innerHTML = "";
-  Object.values(run.signals || {}).forEach((signal) => {
+  
+  // Fallback to forensic_snapshot.component_scores if signals are missing (historical items)
+  let signalData = run.signals;
+  if (!signalData && run.forensic_snapshot?.component_scores) {
+    signalData = {};
+    Object.entries(run.forensic_snapshot.component_scores).forEach(([name, score]) => {
+      signalData[name] = { agent_name: name, score: score, severity: score > 0.7 ? "HIGH" : "LOW", flags: [] };
+    });
+  }
+
+  Object.values(signalData || {}).forEach((signal) => {
     const flags = (signal.flags || [])
       .map((flag) => `<span class="flag">${flag}</span>`)
       .join("");
     const card = document.createElement("article");
     card.className = "agent-card";
     card.innerHTML = `
-      <span class="agent-name">${signal.agent_name.replaceAll("_", " ")}</span>
+      <span class="agent-name">${(signal.agent_name || "Agent").replaceAll("_", " ")}</span>
       <div class="agent-score-row">
         <strong class="agent-score">${fixed(signal.score)}</strong>
-        <span class="agent-severity">${signal.severity}</span>
+        <span class="agent-severity">${signal.severity || "N/A"}</span>
       </div>
-      <div class="bar"><div class="bar-fill" style="width:${Math.min(signal.score * 100, 100)}%"></div></div>
+      <div class="bar"><div class="bar-fill" style="width:${Math.min((signal.score || 0) * 100, 100)}%"></div></div>
       <div class="agent-flags">${flags || '<span class="flag">No flags</span>'}</div>
     `;
     cards.appendChild(card);
@@ -235,18 +251,34 @@ function renderFeed() {
   runs.forEach((run) => {
     const item = document.createElement("article");
     item.className = "live-item";
-    const decision = run.decision.decision || run.decision;
+    const decision = run.decision?.decision || run.decision || "UNKNOWN";
+    const transaction = run.transaction || { transaction_id: run.transaction_id || "TXN-???", sender_account: "Account Info N/A", receiver_account: "N/A", transaction_type: "N/A", amount: 0 };
+    const behaviourEvidence = run.signals?.behaviour_analyser?.evidence || {};
+    const displayName = behaviourEvidence.display_name || null;
+    const loginCount = behaviourEvidence.login_count ?? null;
+
+    const senderLabel = displayName
+      ? `<strong class="user-name">${displayName}</strong><span class="live-meta">${transaction.sender_account}</span>`
+      : `<strong>${transaction.sender_account}</strong>`;
+
+    const loginBadge = loginCount !== null
+      ? `<span class="login-badge" title="Total logins for this account">🔑 ${loginCount} login${loginCount !== 1 ? "s" : ""}</span>`
+      : "";
+
     item.innerHTML = `
       <div class="live-row">
-        <div>
-          <strong>${run.transaction.transaction_id}</strong>
-          <div class="live-meta">${run.transaction.sender_account} → ${run.transaction.receiver_account}</div>
+        <div class="live-user">
+          ${senderLabel}
         </div>
         <span class="decision-chip ${decision}">${decision}</span>
       </div>
       <div class="live-row">
-        <div class="live-meta">${run.transaction.transaction_type} · INR ${Number(run.transaction.amount).toLocaleString()}</div>
-        <div class="live-meta">Risk ${fixed(run.risk?.composite_risk || run.composite_risk)}</div>
+        <div class="live-meta">→ ${transaction.receiver_account}</div>
+        ${loginBadge}
+      </div>
+      <div class="live-row">
+        <div class="live-meta">${transaction.transaction_type} · INR ${Number(transaction.amount).toLocaleString()}</div>
+        <div class="live-meta">Risk ${fixed(run.risk?.composite_risk || run.composite_risk || 0)}</div>
       </div>
     `;
     item.addEventListener("click", () => renderLatest(run));

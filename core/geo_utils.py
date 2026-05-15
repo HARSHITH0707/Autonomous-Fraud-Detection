@@ -1,6 +1,11 @@
-from math import radians, cos, sin, asin, sqrt
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Tuple, Optional
+
+import httpx
+from geopy.distance import geodesic
+
+log = logging.getLogger(__name__)
 
 # Country centroid coordinates (Approximate)
 COUNTRY_COORDS = {
@@ -20,40 +25,47 @@ COUNTRY_COORDS = {
     "SG": (1.3521, 103.8198),    # Singapore
 }
 
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+async def get_ip_location(ip_address: str) -> Tuple[Optional[float], Optional[float]]:
     """
-    Calculate the great circle distance between two points 
-    on the earth (specified in decimal degrees)
+    Look up the exact coordinates of an IP address using an external API.
+    This calculates the current location so we can differentiate exact locations 
+    rather than relying solely on country centroids.
     """
-    # convert decimal degrees to radians 
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    if not ip_address or ip_address.startswith("10.") or ip_address.startswith("192.168.") or ip_address.startswith("127."):
+        return None, None
+    
+    try:
+        async with httpx.AsyncClient(timeout=1.5) as client:
+            resp = await client.get(f"http://ip-api.com/json/{ip_address}")
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("status") == "success":
+                    return data.get("lat"), data.get("lon")
+    except Exception as e:
+        log.warning(f"Failed to geolocate IP {ip_address}: {e}")
+    return None, None
 
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
-    r = 6371 # Radius of earth in kilometers.
-    return c * r
+def _ensure_utc(dt: datetime) -> datetime:
+    """Normalize a datetime to UTC-aware. Treats naive datetimes as UTC."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 def calculate_travel_velocity(
-    prev_country: str, prev_time: datetime,
-    curr_country: str, curr_time: datetime
+    prev_lat: float, prev_lng: float, prev_time: datetime,
+    curr_lat: float, curr_lng: float, curr_time: datetime
 ) -> Tuple[float, float]:
     """
-    Calculates distance (km) and velocity (km/h) between two logins.
-    Returns (0.0, 0.0) if countries are the same or coordinates unknown.
+    Calculates distance (km) and velocity (km/h) between two logins using geopy.
+    Returns (0.0, 0.0) if coordinates are the same.
     """
-    if prev_country == curr_country:
+    if (prev_lat, prev_lng) == (curr_lat, curr_lng) or prev_lat == 0.0 or curr_lat == 0.0:
         return 0.0, 0.0
     
-    p_coords = COUNTRY_COORDS.get(prev_country)
-    c_coords = COUNTRY_COORDS.get(curr_country)
+    prev_time = _ensure_utc(prev_time)
+    curr_time = _ensure_utc(curr_time)
     
-    if not p_coords or not c_coords:
-        return 0.0, 0.0
-    
-    dist = haversine_km(p_coords[0], p_coords[1], c_coords[0], c_coords[1])
+    dist = geodesic((prev_lat, prev_lng), (curr_lat, curr_lng)).kilometers
     time_diff = (curr_time - prev_time).total_seconds() / 3600.0 # hours
     
     if time_diff <= 0:

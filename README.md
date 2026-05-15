@@ -140,8 +140,18 @@ To enable the production-grade authentication and persistence layers, follow the
 - **Firebase Project**: Create a free project at [console.firebase.google.com](https://console.firebase.google.com/).
 
 ### 2. Local Environment Setup
-Install the necessary Python libraries for local scripts (seeding, training):
+It is highly recommended to use a virtual environment to prevent package conflicts and ensure all scripts run correctly:
 ```bash
+# 1. Create a virtual environment
+python3 -m venv .venv
+
+# 2. Activate it
+# On Mac/Linux:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -154,9 +164,9 @@ The system uses Firebase for secure JWT authentication.
 ### 4. MongoDB & Persistence
 MongoDB is used to store login history for "Impossible Travel" detection.
 1. **Start MongoDB**: It is included in the `docker-compose.yml`.
-2. **Seed History**: To test "Impossible Travel" immediately, seed the database with demo history:
+2. **Seed History**: To test "Impossible Travel" immediately, seed the database with demo history. Ensure your virtual environment is active!
    ```bash
-   python scripts/generate_fraud_dataset.py --seed-mongo
+   PYTHONPATH=. python scripts/generate_fraud_dataset.py --seed-mongo
    ```
 3. **Database UI**: Monitor stored logins and decisions at `http://localhost:8081` (User: `admin`, Pass: `pass`).
 

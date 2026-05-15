@@ -18,8 +18,10 @@ def test_health_endpoint_is_ok():
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
 
+import sys
 
 def test_process_endpoint_uses_dashboard_service():
+    sys.modules["api.app"].firebase_ready = False
     app = create_app()
     client = TestClient(app)
 
