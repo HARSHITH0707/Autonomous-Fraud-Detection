@@ -62,12 +62,16 @@ class TransactionRequest(BaseModel):
     login_velocity_10m: int = Field(default=1)
     recent_txn_count_5m: int = Field(default=1)
 
-class DashboardService:
     def __init__(self, network: FraudDetectionNetwork) -> None:
         self.network = network
         self.db = network.db_service
-        self._lock = asyncio.Lock()
+        self._locks: dict[str, asyncio.Lock] = {}
         self._sockets: set[WebSocket] = set()
+
+    def _get_lock(self, account_id: str) -> asyncio.Lock:
+        if account_id not in self._locks:
+            self._locks[account_id] = asyncio.Lock()
+        return self._locks[account_id]
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         if not self._sockets:
@@ -86,7 +90,7 @@ class DashboardService:
         counts = {"ALLOW": 0, "OTP": 0, "BLOCK": 0}
         total_risk = 0.0
         
-        # Convert MongoDB objects to JSON serializable
+        # Convert MongoDB objects to JSON serializable and mask PII
         formatted_recent = []
         for run in recent:
             if "_id" in run:
@@ -102,6 +106,20 @@ class DashboardService:
             
             counts[decision] = counts.get(decision, 0) + 1
             total_risk += run.get("composite_risk", 0.0)
+
+            # Manual PII masking for database records if they contain account details
+            if "sender_account" in run:
+                acc = str(run["sender_account"])
+                run["sender_account"] = "***" + acc[-4:] if len(acc) > 4 else "***"
+            if "receiver_account" in run:
+                acc = str(run["receiver_account"])
+                run["receiver_account"] = "***" + acc[-4:] if len(acc) > 4 else "***"
+            if "ip_address" in run:
+                ip = str(run["ip_address"])
+                if "." in ip:
+                    parts = ip.split(".")
+                    run["ip_address"] = f"{parts[0]}.{parts[1]}.***.***"
+
             formatted_recent.append(run)
             
         return {
@@ -114,7 +132,8 @@ class DashboardService:
 
     async def process(self, payload: dict[str, Any]) -> dict[str, Any]:
         event = TransactionEvent(**payload)
-        async with self._lock:
+        sender = event.sender_account or "unknown"
+        async with self._get_lock(sender):
             result = await self.network.process_event(event)
             run_dict = result.to_dict(mask_sensitive=True)
             # Notify dashboard via websocket
@@ -129,9 +148,11 @@ def create_app() -> FastAPI:
     dashboard = DashboardService(network)
     app.state.dashboard = dashboard
     
+    # CORS Configuration
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -195,7 +216,17 @@ def create_app() -> FastAPI:
         return await network.replay_paysim_stream(limit=limit)
 
     @app.websocket("/ws/dashboard")
-    async def websocket_endpoint(websocket: WebSocket):
+    async def websocket_endpoint(websocket: WebSocket, token: Optional[str] = None):
+        if firebase_ready:
+            if not token:
+                await websocket.close(code=4001)
+                return
+            try:
+                auth.verify_id_token(token)
+            except Exception:
+                await websocket.close(code=4001)
+                return
+                
         await websocket.accept()
         dashboard._sockets.add(websocket)
         try:

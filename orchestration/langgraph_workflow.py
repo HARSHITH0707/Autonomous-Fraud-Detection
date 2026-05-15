@@ -51,11 +51,12 @@ class NetworkRunResult:
                     transaction_data[field_name] = "***" + val[-4:]
                 elif val:
                     transaction_data[field_name] = "***"
-                    
+            
             ip = str(transaction_data.get("ip_address", ""))
-            if ip and len(ip.split(".")) == 4:
+            if ip and "." in ip:
                 parts = ip.split(".")
-                transaction_data["ip_address"] = f"{parts[0]}.{parts[1]}.***.***"
+                if len(parts) == 4:
+                    transaction_data["ip_address"] = f"{parts[0]}.{parts[1]}.***.***"
                 
         return {
             "transaction": transaction_data,

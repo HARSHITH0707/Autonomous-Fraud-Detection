@@ -176,11 +176,33 @@ The `BehaviourAnalyserAgent` now cross-references every login against MongoDB.
 - **The Scenario**: If a user logs in from India and then from the US 10 minutes later, the system calculates the velocity. 
 - **The Alert**: A high-impact animated alert will appear on the dashboard, and the transaction will be blocked based on physical impossibility.
 
-### 🔐 Multi-Provider Auth
-The dashboard is protected by Firebase. You can sign up with a real email or use Google Sign-In to demonstrate enterprise-grade security.
+### 🔐 Enterprise-Grade Security
+- **Multi-Provider Auth**: Dashboard protected by Firebase JWT (Email & Google).
+- **WebSocket Security**: Live feeds are secured via token handshakes.
+- **PII Masking**: Sensitive data (Accounts, IPs) is masked automatically in all API responses.
 
-### 📊 Real-Time Decision Feed
-All decisions are dual-written to local JSONL logs and MongoDB. The "Live Feed" on the dashboard fetches these in real-time via WebSockets.
+### 📊 Performance
+- **Per-Sender Locking**: The system supports high concurrency by processing transactions from different accounts in parallel.
+
+---
+
+## 🛠️ Troubleshooting & Security (For Teammates)
+
+### 1. CORS & Origin Errors
+If you are running the frontend on a different URL than `localhost:8000`, the API will block requests.
+- **Fix**: Update `ALLOWED_ORIGINS` in your `.env` file with your teammate's URL (e.g., `ALLOWED_ORIGINS=http://my-dev-machine:8000`).
+
+### 2. Live Feed (WebSocket) Issues
+The "Live Feed" will only connect if you are **successfully logged in**. 
+- If the feed stays "Connecting...", check the browser console. A `4001` error means the Firebase token was missing or expired. Simply refresh and log in again.
+
+### 3. Monitoring MongoDB
+Access the UI at `http://localhost:8081`. 
+- **Account Logins**: Check this collection to see the "previous login" data that powers the Impossible Travel logic.
+- **Transaction Decisions**: This is the real-time audit trail of every score and decision.
+
+### 4. Monitoring Firebase
+- Go to the **Authentication** tab in the Firebase Console to see users as they sign up. You can manually delete users here to test the "New User" flow.
 
 ---
 

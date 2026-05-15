@@ -115,7 +115,8 @@ async function bootDashboard() {
   } catch(e) { console.warn("Graph overview skipped", e); }
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
+  const wsUrl = `${protocol}://${window.location.host}/ws/dashboard${state.userToken ? `?token=${state.userToken}` : ""}`;
+  const socket = new WebSocket(wsUrl);
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "snapshot") {

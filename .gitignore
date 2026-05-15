@@ -1,21 +1,27 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 .pytest_cache/
+
+# Environments
 .env
+.venv/
 venv/
-data/IEEE-Dataset/
-data/SyntheticFindataset/
-outputs/forensics/
-outputs/*.jsonl
-outputs/*.csv
-.venv/
-.env
-firebase-service-account.json
+ENV/
+
+# Data & Models (Large files or datasets)
+data/
+ml_models/*.pkl
+ml_models/*.joblib
+
+# Outputs & Audit Logs
 outputs/
-__pycache__/
-*.pyc
-.venv/
-.env
+
+# Security (CRITICAL: Never commit these)
 firebase-service-account.json
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
