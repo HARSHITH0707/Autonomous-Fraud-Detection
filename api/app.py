@@ -5,15 +5,16 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from core.config import NetworkSettings
 from core.models import TransactionEvent
 from orchestration import FraudDetectionNetwork
+from api.database import save_transaction
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "webui" / "static"
@@ -73,6 +74,9 @@ class DashboardService:
                 "compliance": result["compliance"],
             }
         )
+        
+        # Write to SQL Connect Database
+        save_transaction(result)
 
     def snapshot(self) -> dict[str, Any]:
         runs = list(self._recent_runs)
@@ -189,11 +193,40 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def redirect_bind_all_host(request: Request, call_next):
+        if request.url.hostname == "0.0.0.0":
+            redirect_url = request.url.replace(hostname="localhost")
+            return RedirectResponse(str(redirect_url), status_code=307)
+        return await call_next(request)
+
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
     async def index() -> FileResponse:
+        return FileResponse(STATIC_DIR / "profile.html")
+
+    @app.get("/dashboard")
+    async def dashboard() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
+
+    @app.get("/profile")
+    async def profile() -> FileResponse:
+        return FileResponse(STATIC_DIR / "profile.html")
+
+    @app.get("/api/config/firebase")
+    async def firebase_config() -> dict[str, str]:
+        import os
+        return {
+            "apiKey": os.getenv("FIREBASE_API_KEY", ""),
+            "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN", ""),
+            "projectId": os.getenv("FIREBASE_PROJECT_ID", ""),
+            "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET", ""),
+            "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID", ""),
+            "appId": os.getenv("FIREBASE_APP_ID", ""),
+            "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID", "")
+        }
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fraud Shield Console</title>
-  <link rel="stylesheet" href="/static/dashboard.css" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=2" />
 </head>
 <body>
   <div class="app-shell">
@@ -22,6 +22,10 @@
         <div class="metric-card">
           <span>Average Risk</span>
           <strong id="avg-risk">0.0000</strong>
+        </div>
+        <div class="metric-card" onclick="window.location.href='/profile'">
+          <span>Operations Space</span>
+          <strong style="font-size: 1.5rem; color: var(--accent); margin-top: 12px; font-weight: 700;">👤 Profile & Feed</strong>
         </div>
       </div>
     </header>
@@ -84,14 +88,6 @@
 
       <section class="panel">
         <div class="panel-header">
-          <h2>Live Feed</h2>
-          <p>Recent decisions visible to operations in real time.</p>
-        </div>
-        <div id="live-feed" class="live-feed"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-header">
           <h2>Graph Intel</h2>
           <p>Fraud rings, mule chains, and shared-device clusters loaded into the graph layer.</p>
         </div>
@@ -99,6 +95,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/dashboard.js"></script>
+  <script type="module" src="/static/dashboard.js?v=2"></script>
 </body>
 </html>

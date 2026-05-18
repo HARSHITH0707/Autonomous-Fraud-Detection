@@ -55,7 +55,6 @@ function renderSummary(snapshot) {
   if (snapshot.latest) {
     renderLatest(snapshot.latest);
   }
-  renderFeed();
 }
 
 function renderLatest(run) {
@@ -96,34 +95,7 @@ function renderLatest(run) {
   });
 }
 
-function renderFeed() {
-  const feed = byId("live-feed");
-  const runs = [...state.recentRuns].reverse();
-  feed.innerHTML = "";
-  if (!runs.length) {
-    feed.innerHTML = `<div class="live-item"><div class="live-meta">No transactions processed yet.</div></div>`;
-    return;
-  }
-  runs.forEach((run) => {
-    const item = document.createElement("article");
-    item.className = "live-item";
-    item.innerHTML = `
-      <div class="live-row">
-        <div>
-          <strong>${run.transaction.transaction_id}</strong>
-          <div class="live-meta">${run.transaction.sender_account} → ${run.transaction.receiver_account}</div>
-        </div>
-        <span class="decision-chip ${run.decision.decision}">${run.decision.decision}</span>
-      </div>
-      <div class="live-row">
-        <div class="live-meta">${run.transaction.channel.toUpperCase()} · INR ${Number(run.transaction.amount).toLocaleString()}</div>
-        <div class="live-meta">Risk ${fixed(run.risk.composite_risk)}</div>
-      </div>
-    `;
-    item.addEventListener("click", () => renderLatest(run));
-    feed.appendChild(item);
-  });
-}
+
 
 function renderGraphOverview(graph) {
   const container = byId("graph-overview");
@@ -216,4 +188,12 @@ async function init() {
   });
 }
 
-init();
+import { auth, onAuthStateChanged } from './auth.js';
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    window.location.href = "/";
+  } else {
+    init();
+  }
+});

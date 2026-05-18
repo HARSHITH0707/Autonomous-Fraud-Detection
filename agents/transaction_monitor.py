@@ -10,7 +10,8 @@ from core.models import AgentSignal, TopicName, TransactionEvent
 
 
 def _parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return dt.replace(tzinfo=None)
 
 
 class TransactionMonitorAgent:
