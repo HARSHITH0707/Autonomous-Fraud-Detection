@@ -1,111 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fraud Shield Profile</title>
-  <link rel="stylesheet" href="/static/dashboard.css?v=2" />
-  <style>
-    .auth-panel {
-      max-width: 400px;
-      margin: 40px auto;
-      padding: 24px;
-      background: var(--bg-card);
-      border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-    .auth-panel h2 {
-      margin-top: 0;
-      margin-bottom: 16px;
-    }
-    .auth-panel input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 16px;
-      background: var(--bg-main);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      border-radius: 6px;
-      box-sizing: border-box;
-    }
-    .auth-panel .button-row {
-      display: flex;
-      gap: 12px;
-    }
-    .auth-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0 16px;
-      color: var(--text-muted, #94a3b8);
-      font-size: 13px;
-    }
-    .auth-divider::before,
-    .auth-divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-    .google-btn {
-      width: 100%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px 16px;
-      background: #fff;
-      color: #1f2937;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    .google-btn:hover {
-      background: #f8fafc;
-    }
-    .profile-info {
-      display: none;
-      margin-bottom: 24px;
-      padding: 16px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-    .profile-info.active {
-      display: block;
-    }
-    .nav-links {
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/dashboard.css?v=10" />
 </head>
 <body>
+  <canvas id="particle-canvas" aria-hidden="true"></canvas>
+  <div class="scanline-overlay" aria-hidden="true"></div>
+
   <div class="app-shell">
-    <header class="hero">
-      <div class="nav-links">
-        <a href="/dashboard" class="ghost" style="text-decoration: none; padding: 12px 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 600;">← Back to Dashboard</a>
-        <button id="logout-btn" class="ghost" style="display: none;">Logout</button>
+    <header class="console-header">
+      <div class="header-top">
+        <div class="nav-bar" style="margin:0;width:auto;">
+          <a href="/dashboard" class="ghost" style="text-decoration:none;padding:10px 16px;border-radius:8px;">← Dashboard</a>
+          <div class="header-actions">
+            <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
+            <button id="logout-btn" class="ghost" style="display:none;">Logout</button>
+          </div>
+        </div>
+        <div class="live-badge"><span class="live-dot"></span> LIVE
+</div>
       </div>
       <div>
         <p class="eyebrow">User Space</p>
-        <h1>Profile & Live Feed</h1>
+        <h1 class="glitch-title" data-text="Profile & Live Feed">Profile & Live Feed</h1>
         <p class="lede">Authenticate to view your details and the real-time transaction monitor.</p>
       </div>
     </header>
 
-    <main class="grid" id="main-content">
-      
-      <!-- Auth Form -->
-      <section class="panel" id="auth-section">
+    <main class="profile-grid" id="main-content">
+      <section class="panel scan-panel" id="auth-section">
         <div class="auth-panel">
           <h2>Login / Sign Up</h2>
           <form id="auth-form">
-            <input type="email" id="email" placeholder="Email Address" required />
-            <input type="password" id="password" placeholder="Password" required />
+            <label><span>Email</span><input type="email" id="email" placeholder="Email Address" required /></label>
+            <label><span>Password</span><input type="password" id="password" placeholder="Password" required /></label>
             <div class="button-row">
               <button type="button" id="login-btn" class="primary">Login</button>
               <button type="button" id="signup-btn" class="accent">Sign Up</button>
@@ -120,31 +51,42 @@
               </svg>
               Continue with Google
             </button>
-            <p id="auth-error" style="color: var(--block); margin-top: 12px; font-size: 14px;"></p>
+            <p id="auth-error"></p>
           </form>
         </div>
       </section>
 
-      <!-- Profile & Feed (Hidden until auth) -->
-      <div id="authenticated-content" style="display: none; width: 100%;">
-        <div class="profile-info active">
+      <div id="authenticated-content" style="display:none;">
+        <div class="profile-info panel scan-panel">
           <h2>User Details</h2>
           <p><strong>Email:</strong> <span id="user-email"></span></p>
           <p><strong>UID:</strong> <span id="user-uid"></span></p>
         </div>
 
-        <section class="panel">
+        <section class="panel scan-panel heatmap-section">
+          <div class="heatmap-header">
+            <h3>Risk Heatmap</h3>
+            <div class="heatmap-legend">
+              <span><i style="background:#1a2030"></i> Low</span>
+              <span><i style="background:#ffb800"></i> Med</span>
+              <span><i style="background:#ff2d55"></i> High</span>
+            </div>
+          </div>
+          <div id="risk-heatmap" aria-label="Risk by day and hour"></div>
+        </section>
+
+        <section class="panel scan-panel">
           <div class="panel-header">
             <h2>Live Feed</h2>
             <p>Recent decisions visible to operations in real time.</p>
           </div>
-          <div id="live-feed" class="live-feed"></div>
+          <div id="live-feed" class="live-feed">
+</div>
         </section>
       </div>
-
     </main>
   </div>
 
-  <script type="module" src="/static/profile.js?v=9"></script>
+  <script type="module" src="/static/profile.js?v=10"></script>
 </body>
 </html>

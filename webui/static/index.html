@@ -1,100 +1,151 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fraud Shield Console</title>
-  <link rel="stylesheet" href="/static/dashboard.css?v=2" />
+  <link rel="stylesheet" href="/static/dashboard.css?v=10" />
 </head>
 <body>
+  <canvas id="particle-canvas" aria-hidden="true"></canvas>
+  <div class="scanline-overlay" aria-hidden="true"></div>
+
   <div class="app-shell">
-    <header class="hero">
-      <div>
+    <header class="console-header">
+      <div class="header-top">
         <p class="eyebrow">Multi-Agent Fraud Detection Network</p>
-        <h1>Fraud Shield Console</h1>
+        <div class="header-actions">
+          <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
+          <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+        </div>
+      </div>
+      <div>
+        <h1 class="glitch-title" data-text="Fraud Shield Console">Fraud Shield Console</h1>
         <p class="lede">Submit transactions, trigger the proof-of-concept fraud path, and watch agent scores, graph signals, and final decisions update live.</p>
       </div>
       <div class="hero-metrics">
-        <div class="metric-card">
-          <span>Recent Decisions</span>
-          <strong id="recent-total">0</strong>
+        <div class="flip-card">
+          <div class="flip-inner">
+            <div class="flip-front">
+              <span>Recent Decisions</span>
+              <strong id="recent-total">0</strong>
+            </div>
+            <div class="flip-back" id="spark-recent"></div>
+          </div>
         </div>
-        <div class="metric-card">
-          <span>Average Risk</span>
-          <strong id="avg-risk">0.0000</strong>
+        <div class="flip-card">
+          <div class="flip-inner">
+            <div class="flip-front">
+              <span>Average Risk</span>
+              <strong id="avg-risk">0.0000</strong>
+            </div>
+            <div class="flip-back" id="spark-risk"></div>
+          </div>
         </div>
-        <div class="metric-card" onclick="window.location.href='/profile'">
-          <span>Operations Space</span>
-          <strong style="font-size: 1.5rem; color: var(--accent); margin-top: 12px; font-weight: 700;">👤 Profile & Feed</strong>
+        <div class="flip-card profile-link" onclick="window.location.href='/profile'">
+          <div class="flip-inner">
+            <div class="flip-front">
+              <span>Operations Space</span>
+              <strong>Profile & Feed →</strong>
+            </div>
+            <div class="flip-back"><span>Live monitor</span></div>
+          </div>
         </div>
       </div>
     </header>
 
     <main class="grid">
-      <section class="panel">
+      <section class="panel scan-panel">
         <div class="panel-header">
           <h2>Transaction Console</h2>
           <p>Drive the customer-facing flow and real-time fraud decisioning from a single screen.</p>
         </div>
-        <form id="txn-form" class="txn-form">
-          <label><span>Transaction ID</span><input name="transaction_id" value="TXN-WEB-001" /></label>
-          <label><span>Channel</span><select name="channel"><option value="upi">UPI</option><option value="card">Card</option><option value="net_banking">Net Banking</option><option value="crypto">Crypto</option></select></label>
-          <label><span>Sender</span><input name="sender_account" value="ACC-PRIMARY" /></label>
-          <label><span>Receiver</span><input name="receiver_account" value="ACC-MERCHANT-001" /></label>
-          <label><span>Amount</span><input name="amount" type="number" step="0.01" value="2500" /></label>
-          <label><span>Device ID</span><input name="device_id" value="device-home-01" /></label>
-          <label><span>IP Address</span><input name="ip_address" value="103.44.12.8" /></label>
-          <label><span>Login Country</span><input name="login_country" value="IN" /></label>
-          <label><span>Home Country</span><input name="home_country" value="IN" /></label>
-          <label><span>Geo Velocity (km)</span><input name="geo_velocity_km" type="number" step="0.01" value="0" /></label>
-          <label><span>Recent Txns (5m)</span><input name="recent_txn_count_5m" type="number" value="1" /></label>
-          <label><span>Recent Amount (5m)</span><input name="recent_amount_5m" type="number" step="0.01" value="2500" /></label>
-          <label><span>Login Attempts (10m)</span><input name="login_velocity_10m" type="number" value="1" /></label>
-          <label class="toggle"><span>Device Mismatch</span><input name="device_mismatch" type="checkbox" /></label>
-          <label class="toggle"><span>New Beneficiary</span><input name="new_beneficiary" type="checkbox" /></label>
-          <label><span>Beneficiary Age (days)</span><input name="beneficiary_age_days" type="number" value="30" /></label>
-          <div class="button-row">
-            <button type="submit" class="primary">Process Transaction</button>
-            <button type="button" id="run-poc" class="accent">Run Suspicious PoC</button>
-            <button type="button" id="replay-stream" class="ghost">Replay 20-Event Stream</button>
+        <div class="txn-layout">
+          <form id="txn-form" class="txn-form">
+            <label><span>Transaction ID</span><input name="transaction_id" value="TXN-WEB-001" /></label>
+            <label><span>Channel</span><select name="channel"><option value="upi">UPI</option><option value="card">Card</option><option value="net_banking">Net Banking</option><option value="crypto">Crypto</option></select></label>
+            <label><span>Sender</span><input name="sender_account" value="ACC-PRIMARY" /></label>
+            <label><span>Receiver</span><input name="receiver_account" value="ACC-MERCHANT-001" /></label>
+            <label class="risk-input"><span>Amount</span><input name="amount" type="number" step="0.01" value="2500" /></label>
+            <label><span>Device ID</span><input name="device_id" value="device-home-01" /></label>
+            <label><span>IP Address</span><input name="ip_address" value="103.44.12.8" /></label>
+            <label><span>Login Country</span><input name="login_country" value="IN" /></label>
+            <label><span>Home Country</span><input name="home_country" value="IN" /></label>
+            <label class="risk-input"><span>Geo Velocity (km)</span><input name="geo_velocity_km" type="number" step="0.01" value="0" /></label>
+            <label class="risk-input"><span>Recent Txns (5m)</span><input name="recent_txn_count_5m" type="number" value="1" /></label>
+            <label><span>Recent Amount (5m)</span><input name="recent_amount_5m" type="number" step="0.01" value="2500" /></label>
+            <label><span>Login Attempts (10m)</span><input name="login_velocity_10m" type="number" value="1" /></label>
+            <label class="toggle"><span>Device Mismatch</span><input name="device_mismatch" type="checkbox" /></label>
+            <label class="toggle"><span>New Beneficiary</span><input name="new_beneficiary" type="checkbox" /></label>
+            <label><span>Beneficiary Age (days)</span><input name="beneficiary_age_days" type="number" value="30" /></label>
+            <div class="button-row">
+              <button type="submit" class="primary">Process Transaction</button>
+              <button type="button" id="run-poc" class="accent">Run Suspicious PoC</button>
+              <button type="button" id="replay-stream" class="ghost"><span class="spinner" hidden></span><span class="btn-label">Replay 20-Event Stream</span></button>
+            </div>
+          </form>
+          <div class="risk-gauge-wrap">
+            <span>Risk Preview</span>
+            <svg id="risk-gauge" viewBox="0 0 140 80" aria-hidden="true">
+              <path d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+              <path id="risk-gauge-arc" d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="173"/>
+            </svg>
+            <strong id="risk-gauge-val">0%</strong>
           </div>
-        </form>
+        </div>
       </section>
 
-      <section class="panel">
+      <section class="panel scan-panel">
         <div class="panel-header">
           <h2>Decision Board</h2>
           <p>Latest action path, threshold outcome, and decision mix.</p>
         </div>
-        <div id="decision-banner" class="decision-banner neutral">
-          <span class="decision-label">Awaiting Transaction</span>
-          <strong class="decision-score">0.0000</strong>
+        <div id="decision-stage" class="decision-stage neutral">
+          <div class="hex-scene">
+            <div class="hex-wrap">
+              <div class="hex-face">
+                <span class="decision-label">Awaiting Transaction</span>
+                <strong class="decision-score">0.0000</strong>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="decision-grid">
-          <div class="stat-card"><span>ALLOW</span><strong id="count-allow">0</strong></div>
-          <div class="stat-card"><span>OTP</span><strong id="count-otp">0</strong></div>
-          <div class="stat-card"><span>BLOCK</span><strong id="count-block">0</strong></div>
+          <div class="stat-card allow"><span>ALLOW</span><strong id="count-allow">0</strong></div>
+          <div class="stat-card otp"><span>OTP</span><strong id="count-otp">0</strong></div>
+          <div class="stat-card block"><span>BLOCK</span><strong id="count-block">0</strong></div>
         </div>
         <div id="decision-reasons" class="reasons"></div>
       </section>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Agent Signals</h2>
-          <p>Watch Agent 01, 02, and 03 feed the composite risk scorer.</p>
-        </div>
-        <div id="agent-cards" class="agent-cards"></div>
-      </section>
+      <div class="grid-bottom">
+        <section class="panel scan-panel">
+          <div class="panel-header">
+            <h2>Agent Signals</h2>
+            <p>Watch Agent 01, 02, and 03 feed the composite risk scorer.</p>
+          </div>
+          <div id="agent-cards" class="agent-cards"></div>
+        </section>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Graph Intel</h2>
-          <p>Fraud rings, mule chains, and shared-device clusters loaded into the graph layer.</p>
-        </div>
-        <div id="graph-overview" class="graph-overview"></div>
-      </section>
+        <section class="panel scan-panel">
+          <div class="panel-header">
+            <h2>Graph Intel</h2>
+            <p>Fraud rings, mule chains, and shared-device clusters in the graph layer.</p>
+          </div>
+          <div id="graph-viz" class="graph-viz"></div>
+          <div id="graph-overview" class="graph-chips"></div>
+        </section>
+      </div>
     </main>
   </div>
-  <script type="module" src="/static/dashboard.js?v=2"></script>
+
+  <footer class="console-footer">
+    <span><kbd>P</kbd> Process</span>
+    <span><kbd>R</kbd> Run PoC</span>
+    <span><kbd>S</kbd> Replay Stream</span>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script type="module" src="/static/dashboard.js?v=10"></script>
 </body>
 </html>
