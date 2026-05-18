@@ -10,3 +10,5 @@ data/SyntheticFindataset/
 outputs/forensics/
 outputs/*.jsonl
 outputs/*.csv
+firebase-service-account.json
+firebase-service-account.json
