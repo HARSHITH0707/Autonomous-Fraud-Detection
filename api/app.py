@@ -215,6 +215,10 @@ def create_app() -> FastAPI:
     async def profile() -> FileResponse:
         return FileResponse(STATIC_DIR / "profile.html")
 
+    @app.get("/about")
+    async def about() -> FileResponse:
+        return FileResponse(STATIC_DIR / "about.html")
+
     @app.get("/api/config/firebase")
     async def firebase_config() -> dict[str, str]:
         import os

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fraud Shield Console</title>
   <link rel="stylesheet" href="/static/dashboard.css?v=10" />
 </head>
+
 <body>
   <canvas id="particle-canvas" aria-hidden="true"></canvas>
   <div class="scanline-overlay" aria-hidden="true"></div>
@@ -13,7 +15,17 @@
   <div class="app-shell">
     <header class="console-header">
       <div class="header-top">
-        <p class="eyebrow">Multi-Agent Fraud Detection Network</p>
+        <div class="nav-bar-wrapper">
+          <div class="nav-brand">
+            <img src="/static/images/brand_logo.png" alt="Fraud Shield Logo" class="brand-logo-img" />
+            <span class="brand-name">FRAUD<span class="brand-suffix">SHIELD</span></span>
+          </div>
+          <div class="nav-links-group">
+            <a href="/dashboard" class="nav-link active">Console Dashboard</a>
+            <a href="/profile" class="nav-link">Operations Feed</a>
+            <a href="/about" class="nav-link">About & Architecture</a>
+          </div>
+        </div>
         <div class="header-actions">
           <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
           <div class="live-badge"><span class="live-dot"></span> LIVE</div>
@@ -21,7 +33,8 @@
       </div>
       <div>
         <h1 class="glitch-title" data-text="Fraud Shield Console">Fraud Shield Console</h1>
-        <p class="lede">Submit transactions, trigger the proof-of-concept fraud path, and watch agent scores, graph signals, and final decisions update live.</p>
+        <p class="lede">Submit transactions, trigger the proof-of-concept fraud path, and watch agent scores, graph
+          signals, and final decisions update live.</p>
       </div>
       <div class="hero-metrics">
         <div class="flip-card">
@@ -55,6 +68,34 @@
     </header>
 
     <main class="grid">
+      <!-- Premium System Status & Overview banner -->
+      <section class="panel scan-panel system-status-banner"
+        style="grid-column: 1 / -1; padding: 0; overflow: hidden; background: linear-gradient(135deg, rgba(5, 12, 24, 0.95), rgba(10, 25, 50, 0.85)); display: grid; grid-template-columns: 1.3fr 0.7fr; min-height: 200px; align-items: center; border-radius: 16px; border: 1px solid var(--panel-border); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
+        <div style="padding: 32px;">
+          <div class="eyebrow" style="color: var(--allow); margin-bottom: 6px;">System Command Console</div>
+          <h2
+            style="font-family: var(--font-num); color: var(--cyan); margin: 0 0 10px; font-size: 1.6rem; text-shadow: var(--glow-cyan);">
+            Autonomous Agent Network is Active</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.88rem; line-height: 1.6; max-width: 600px;">
+            The console coordinates a multi-agent risk assessment pipeline. When a transaction is submitted below,
+            heuristic velocity monitoring, device fingerprinting, geovelocity calculation, and Neo4j relational path
+            extraction are triggered simultaneously to verify compliance and security in under 10 milliseconds.
+          </p>
+        </div>
+        <div
+          style="position: relative; height: 100%; border-left: 1px solid var(--panel-border); overflow: hidden; background: #000; display: flex; align-items: center; justify-content: center;">
+          <img src="/static/images/dashboard_UI/landing page image.png" alt="Fraud Shield Console Showcase"
+            style="width: 100%; height: 100%; object-fit: cover; opacity: 0.65; transition: transform 0.8s ease;"
+            class="banner-preview-img" />
+          <div
+            style="position: absolute; inset: 0; background: linear-gradient(to right, rgba(2, 4, 8, 0.9) 0%, transparent 100%); pointer-events: none;">
+          </div>
+          <span
+            style="position: absolute; bottom: 12px; right: 12px; font-size: 0.65rem; font-family: var(--font-num); color: var(--cyan); background: rgba(0, 245, 255, 0.1); border: 1px solid rgba(0, 245, 255, 0.2); padding: 4px 8px; border-radius: 4px;">CONSOLE
+            OVERVIEW</span>
+        </div>
+      </section>
+
       <section class="panel scan-panel">
         <div class="panel-header">
           <h2>Transaction Console</h2>
@@ -62,33 +103,69 @@
         </div>
         <div class="txn-layout">
           <form id="txn-form" class="txn-form">
+            <div class="scenario-selector-row"
+              style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--panel-border); padding-bottom: 16px; width: 100%; grid-column: 1 / -1;">
+              <span
+                style="font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Pre-fill
+                Case:</span>
+              <button type="button" id="load-allow-case" class="ghost active"
+                style="min-height: 28px; padding: 0 12px; font-size: 0.72rem;">ALLOW Case</button>
+              <button type="button" id="load-otp-case" class="ghost"
+                style="min-height: 28px; padding: 0 12px; font-size: 0.72rem;">OTP Case</button>
+              <button type="button" id="load-block-case" class="ghost"
+                style="min-height: 28px; padding: 0 12px; font-size: 0.72rem;">BLOCK Case</button>
+            </div>
+            <!-- Section 1: Core transactional metrics -->
+            <div
+              style="grid-column: 1 / -1; margin-top: 10px; margin-bottom: 6px; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); font-weight: 700; border-bottom: 1px solid rgba(0, 245, 255, 0.08); padding-bottom: 4px;">
+              Core Transaction Details</div>
+
             <label><span>Transaction ID</span><input name="transaction_id" value="TXN-WEB-001" /></label>
-            <label><span>Channel</span><select name="channel"><option value="upi">UPI</option><option value="card">Card</option><option value="net_banking">Net Banking</option><option value="crypto">Crypto</option></select></label>
+            <label><span>Channel</span><select name="channel">
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+                <option value="net_banking">Net Banking</option>
+                <option value="crypto">Crypto</option>
+              </select></label>
             <label><span>Sender</span><input name="sender_account" value="ACC-PRIMARY" /></label>
             <label><span>Receiver</span><input name="receiver_account" value="ACC-MERCHANT-001" /></label>
-            <label class="risk-input"><span>Amount</span><input name="amount" type="number" step="0.01" value="2500" /></label>
+            <label class="risk-input"><span>Amount (INR)</span><input name="amount" type="number" step="0.01"
+                value="2500" /></label>
+
+            <!-- Section 2: Behavioral risk factors -->
+            <div
+              style="grid-column: 1 / -1; margin-top: 16px; margin-bottom: 6px; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--block); font-weight: 700; border-bottom: 1px solid rgba(255, 45, 85, 0.08); padding-bottom: 4px;">
+              Behavioral & Network Signals</div>
+
             <label><span>Device ID</span><input name="device_id" value="device-home-01" /></label>
             <label><span>IP Address</span><input name="ip_address" value="103.44.12.8" /></label>
             <label><span>Login Country</span><input name="login_country" value="IN" /></label>
             <label><span>Home Country</span><input name="home_country" value="IN" /></label>
-            <label class="risk-input"><span>Geo Velocity (km)</span><input name="geo_velocity_km" type="number" step="0.01" value="0" /></label>
-            <label class="risk-input"><span>Recent Txns (5m)</span><input name="recent_txn_count_5m" type="number" value="1" /></label>
-            <label><span>Recent Amount (5m)</span><input name="recent_amount_5m" type="number" step="0.01" value="2500" /></label>
+            <label class="risk-input"><span>Geo Velocity (km)</span><input name="geo_velocity_km" type="number"
+                step="0.01" value="0" /></label>
+            <label class="risk-input"><span>Recent Txns (5m)</span><input name="recent_txn_count_5m" type="number"
+                value="1" /></label>
+            <label><span>Recent Amount (5m)</span><input name="recent_amount_5m" type="number" step="0.01"
+                value="2500" /></label>
             <label><span>Login Attempts (10m)</span><input name="login_velocity_10m" type="number" value="1" /></label>
             <label class="toggle"><span>Device Mismatch</span><input name="device_mismatch" type="checkbox" /></label>
             <label class="toggle"><span>New Beneficiary</span><input name="new_beneficiary" type="checkbox" /></label>
-            <label><span>Beneficiary Age (days)</span><input name="beneficiary_age_days" type="number" value="30" /></label>
+            <label><span>Beneficiary Age (days)</span><input name="beneficiary_age_days" type="number"
+                value="30" /></label>
             <div class="button-row">
               <button type="submit" class="primary">Process Transaction</button>
               <button type="button" id="run-poc" class="accent">Run Suspicious PoC</button>
-              <button type="button" id="replay-stream" class="ghost"><span class="spinner" hidden></span><span class="btn-label">Replay 20-Event Stream</span></button>
+              <button type="button" id="replay-stream" class="ghost"><span class="spinner" hidden></span><span
+                  class="btn-label">Replay 20-Event Stream</span></button>
             </div>
           </form>
           <div class="risk-gauge-wrap">
             <span>Risk Preview</span>
             <svg id="risk-gauge" viewBox="0 0 140 80" aria-hidden="true">
-              <path d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
-              <path id="risk-gauge-arc" d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="#39ff14" stroke-width="8" stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="173"/>
+              <path d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"
+                stroke-linecap="round" />
+              <path id="risk-gauge-arc" d="M 15 70 A 55 55 0 0 1 125 70" fill="none" stroke="#39ff14" stroke-width="8"
+                stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="173" />
             </svg>
             <strong id="risk-gauge-val">0%</strong>
           </div>
@@ -116,6 +193,68 @@
           <div class="stat-card block"><span>BLOCK</span><strong id="count-block">0</strong></div>
         </div>
         <div id="decision-reasons" class="reasons"></div>
+        
+        <!-- Elegant dynamic Flag Explanation & Glossary card -->
+        <div id="flag-explanation-container" style="margin-top: 24px; padding: 20px; background: rgba(0, 0, 0, 0.2); border: 1px solid var(--panel-border); border-radius: 12px; font-size: 0.82rem; line-height: 1.5; color: var(--text-muted);">
+          <div style="font-weight: 700; color: var(--cyan); margin-bottom: 12px; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--font-num); border-bottom: 1px solid rgba(0, 245, 255, 0.08); padding-bottom: 6px;">Active Signals & Risk Explanations</div>
+          <div id="flag-explanation-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="font-style: italic; color: var(--text-muted); opacity: 0.8;">No transactions evaluated yet. Submit a test case above to analyze operational signals.</div>
+          </div>
+
+          <!-- Section: Comprehensive Reference Directory -->
+          <div style="border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 14px;">
+            <details style="cursor: pointer; outline: none;" open>
+              <summary style="font-weight: 700; color: var(--cyan); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-family: var(--font-num); display: flex; align-items: center; justify-content: space-between; user-select: none;">
+                <span>📚 System Risk Flags Glossary</span>
+                <span style="font-size: 0.62rem; color: var(--text-muted); font-weight: normal;">(Click to Collapse/Expand)</span>
+              </summary>
+              <div class="glossary-content" style="margin-top: 12px; display: flex; flex-direction: column; gap: 14px; max-height: 380px; overflow-y: auto; padding-right: 8px; font-size: 0.78rem;">
+                
+                <!-- Heuristics & Rules -->
+                <div style="border-left: 2px solid var(--cyan); padding-left: 10px;">
+                  <strong style="color: var(--cyan); text-transform: uppercase; font-size: 0.7rem; display: block; margin-bottom: 4px; letter-spacing: 0.05em;">Heuristics & Rules (Agent 01)</strong>
+                  <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px; color: var(--text-muted);">
+                    <div><strong style="color: #fff;">VERY_HIGH_AMOUNT:</strong> Transaction size is exceptionally large (typically &gt; 50,000 INR). Triggers immediate hold and severe compliance checks.</div>
+                    <div><strong style="color: #fff;">HIGH_AMOUNT:</strong> Transaction size exceeds standard peer-to-peer thresholds (typically &gt; 10,000 INR), carrying elevated base risk.</div>
+                    <div><strong style="color: #fff;">HIGH_VELOCITY_COUNT:</strong> Multiple separate transactions executed in under 5 minutes, typical of automation drainage.</div>
+                    <div><strong style="color: #fff;">HIGH_VELOCITY_AMOUNT:</strong> Abnormally large total volume transferred over 5 minutes, indicating rapid linear cash siphoning.</div>
+                    <div><strong style="color: #fff;">NEW_BENEFICIARY:</strong> Money sent to a recipient added within the last 30 days. First-time links represent elevated transfer risk.</div>
+                    <div><strong style="color: #fff;">HIGH_RISK_RAIL:</strong> Payments executed using instant, irreversible pathways (like UPI or Crypto) for large amounts.</div>
+                    <div><strong style="color: #fff;">ROUND_AMOUNT:</strong> Rounded clean integer lump sums typical of automated script bots or systematic cash-out runs.</div>
+                  </div>
+                </div>
+
+                <!-- Behavioral & Identity -->
+                <div style="border-left: 2px solid var(--otp); padding-left: 10px;">
+                  <strong style="color: var(--otp); text-transform: uppercase; font-size: 0.7rem; display: block; margin-bottom: 4px; letter-spacing: 0.05em;">Behavioral & Identity (Agent 02)</strong>
+                  <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px; color: var(--text-muted);">
+                    <div><strong style="color: #fff;">FOREIGN_LOGIN:</strong> Login country does not match the registered home country of the customer profile.</div>
+                    <div><strong style="color: #fff;">DEVICE_MISMATCH:</strong> Device hardware fingerprint does not match any previously authorized device on profile history.</div>
+                    <div><strong style="color: #fff;">NEW_DEVICE:</strong> The physical device used is brand new and completely unrecognized in the platform database.</div>
+                    <div><strong style="color: #fff;">NEW_GEO:</strong> Login location belongs to a geographic coordinates cluster never previously recorded for this customer.</div>
+                    <div><strong style="color: #fff;">IMPOSSIBLE_TRAVEL:</strong> Logins occur at separate locations physically impossible to travel to in the elapsed time.</div>
+                    <div><strong style="color: #fff;">AMOUNT_SPIKE:</strong> Transaction value represents a huge percentage spike above average historical daily spend thresholds.</div>
+                    <div><strong style="color: #fff;">LOGIN_BURST:</strong> Multiple repeated login attempts within 10 minutes, typical of brute force credential stuffing.</div>
+                    <div><strong style="color: #fff;">ISOLATION_FOREST_OUTLIER:</strong> Advanced machine learning model flags the transaction vector as an anomalous outlier.</div>
+                  </div>
+                </div>
+
+                <!-- Graph Relational -->
+                <div style="border-left: 2px solid var(--block); padding-left: 10px;">
+                  <strong style="color: var(--block); text-transform: uppercase; font-size: 0.7rem; display: block; margin-bottom: 4px; letter-spacing: 0.05em;">Graph Relational (Agent 03)</strong>
+                  <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 6px; color: var(--text-muted);">
+                    <div><strong style="color: #fff;">SHARED_DEVICE:</strong> Hardware is reused across multiple distinct account profiles. Strong indicator of organized mule operations.</div>
+                    <div><strong style="color: #fff;">SHARED_IP:</strong> Local network connection shared across several accounts, indicating localized cyber fraud farming centers.</div>
+                    <div><strong style="color: #fff;">MULE_HUB:</strong> Receiving account receives rapid cash flows from multiple distinct accounts, acting as a collection point.</div>
+                    <div><strong style="color: #fff;">MULE_CHAIN:</strong> Receiver immediately forwards funds downstream through consecutive hops (A → B → C) to mask traces.</div>
+                    <div><strong style="color: #fff;">FRAUD_RING:</strong> Closed cyclic loop of transactions detected (A → B → C → A) designed to keep illicit cash circulating internally.</div>
+                  </div>
+                </div>
+
+              </div>
+            </details>
+          </div>
+        </div>
       </section>
 
       <div class="grid-bottom">
@@ -147,5 +286,153 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <script type="module" src="/static/dashboard.js?v=10"></script>
+  <script type="module">
+    // Graph Intel toggling between Live Graph and Pattern Guides
+    const btnLive = document.getElementById('toggle-live-graph');
+    const btnPatterns = document.getElementById('toggle-patterns');
+    const vizDiv = document.getElementById('graph-viz');
+    const galleryDiv = document.getElementById('graph-pattern-gallery');
+
+    if (btnLive && btnPatterns && vizDiv && galleryDiv) {
+      btnLive.addEventListener('click', () => {
+        btnLive.classList.add('active');
+        btnPatterns.classList.remove('active');
+        vizDiv.style.display = 'block';
+        galleryDiv.style.display = 'none';
+      });
+
+      btnPatterns.addEventListener('click', () => {
+        btnPatterns.classList.add('active');
+        btnLive.classList.remove('active');
+        vizDiv.style.display = 'none';
+        galleryDiv.style.display = 'block';
+      });
+    }
+
+    // Pattern Gallery thumbnail switching
+    const navButtons = document.querySelectorAll('.gallery-nav-btn');
+    const previewImg = document.getElementById('gallery-img-preview');
+    const previewDesc = document.getElementById('gallery-desc-preview');
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const imgSrc = btn.getAttribute('data-img');
+        const imgDesc = btn.getAttribute('data-desc');
+
+        if (previewImg && imgSrc) previewImg.src = imgSrc;
+        if (previewDesc && imgDesc) previewDesc.textContent = imgDesc;
+      });
+    });
+
+    // Case Pre-fill Buttons Logic
+    const cases = {
+      allow: {
+        transaction_id: "TXN-WEB-001",
+        channel: "upi",
+        sender_account: "ACC-PRIMARY",
+        receiver_account: "ACC-MERCHANT-001",
+        amount: "2500",
+        device_id: "device-home-01",
+        ip_address: "103.44.12.8",
+        login_country: "IN",
+        home_country: "IN",
+        geo_velocity_km: "0",
+        recent_txn_count_5m: "1",
+        recent_amount_5m: "2500",
+        login_velocity_10m: "1",
+        device_mismatch: false,
+        new_beneficiary: false,
+        beneficiary_age_days: "30"
+      },
+      otp: {
+        transaction_id: "OTP-TEST-001",
+        channel: "upi",
+        sender_account: "ACC-OTP-001",
+        receiver_account: "ACC-MULE-1",
+        amount: "40000",
+        device_id: "device-home-01",
+        ip_address: "103.44.12.8",
+        login_country: "IN",
+        home_country: "IN",
+        geo_velocity_km: "0",
+        recent_txn_count_5m: "5",
+        recent_amount_5m: "120000",
+        login_velocity_10m: "3",
+        device_mismatch: false,
+        new_beneficiary: false,
+        beneficiary_age_days: "30"
+      },
+      block: {
+        transaction_id: "BLOCK-TEST-001",
+        channel: "upi",
+        sender_account: "ACC-BLOCK-001",
+        receiver_account: "ACC-MULE-1",
+        amount: "40000",
+        device_id: "device-home-01",
+        ip_address: "103.44.12.8",
+        login_country: "IN",
+        home_country: "IN",
+        geo_velocity_km: "900",
+        recent_txn_count_5m: "5",
+        recent_amount_5m: "120000",
+        login_velocity_10m: "4",
+        device_mismatch: false,
+        new_beneficiary: false,
+        beneficiary_age_days: "30"
+      }
+    };
+
+    const form = document.getElementById('txn-form');
+
+    function loadCase(caseKey) {
+      const data = cases[caseKey];
+      if (!data || !form) return;
+
+      // Update form values
+      for (const [key, val] of Object.entries(data)) {
+        const input = form.elements[key];
+        if (!input) continue;
+
+        if (input.type === 'checkbox') {
+          input.checked = val;
+        } else {
+          input.value = val;
+        }
+      }
+
+      // Trigger change/input event to let D3 risk previews update
+      const event = new Event('input', { bubbles: true });
+      form.dispatchEvent(event);
+    }
+
+    const btnAllow = document.getElementById('load-allow-case');
+    const btnOtp = document.getElementById('load-otp-case');
+    const btnBlock = document.getElementById('load-block-case');
+    const caseButtons = [btnAllow, btnOtp, btnBlock];
+
+    if (btnAllow && btnOtp && btnBlock) {
+      btnAllow.addEventListener('click', () => {
+        caseButtons.forEach(b => b.classList.remove('active'));
+        btnAllow.classList.add('active');
+        loadCase('allow');
+      });
+
+      btnOtp.addEventListener('click', () => {
+        caseButtons.forEach(b => b.classList.remove('active'));
+        btnOtp.classList.add('active');
+        loadCase('otp');
+      });
+
+      btnBlock.addEventListener('click', () => {
+        caseButtons.forEach(b => b.classList.remove('active'));
+        btnBlock.classList.add('active');
+        loadCase('block');
+      });
+    }
+  </script>
 </body>
+
 </html>

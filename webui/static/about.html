@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About & Architecture - Fraud Shield</title>
+  <link rel="stylesheet" href="/static/dashboard.css?v=10" />
+  <style>
+    /* Custom styles for About page to keep it premium and modular */
+    .about-container {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    
+    .hero-panel {
+      position: relative;
+      background: linear-gradient(135deg, rgba(5, 12, 24, 0.95), rgba(10, 25, 50, 0.85));
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 48px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: center;
+    }
+    
+    .hero-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--cyan), var(--allow), var(--block));
+    }
+    
+    .hero-text h1 {
+      font-family: var(--font-num);
+      font-size: 2.8rem;
+      margin: 0 0 16px;
+      text-shadow: var(--glow-cyan);
+      background: linear-gradient(90deg, #fff, var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .hero-text p {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+      margin: 0 0 24px;
+    }
+    
+    .hero-image-wrap {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    
+    .hero-image-wrap img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transition: transform 0.5s ease;
+    }
+    
+    .hero-image-wrap:hover img {
+      transform: scale(1.03);
+    }
+    
+    /* Interactive Tabs Section */
+    .tab-section {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+    
+    .section-header {
+      margin-bottom: 24px;
+    }
+    
+    .section-header h2 {
+      font-family: var(--font-num);
+      font-size: 1.8rem;
+      margin: 0 0 8px;
+      color: var(--cyan);
+      text-shadow: var(--glow-cyan);
+    }
+    
+    .section-header p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    
+    .tabs-nav {
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .tab-btn {
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--text-muted);
+      border: 1px solid var(--panel-border);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .tab-btn.active {
+      color: var(--cyan);
+      background: rgba(0, 245, 255, 0.1);
+      border-color: var(--cyan);
+      box-shadow: var(--glow-cyan);
+    }
+    
+    .tab-content {
+      display: none;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 32px;
+      align-items: center;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    
+    .tab-content.active {
+      display: grid;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .tab-description h3 {
+      font-size: 1.4rem;
+      margin: 0 0 12px;
+      color: var(--text);
+    }
+    
+    .tab-description p {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .tech-pill {
+      background: rgba(0, 245, 255, 0.05);
+      border: 1px solid rgba(0, 245, 255, 0.15);
+      color: var(--cyan);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .tab-visual {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      background: #000;
+      position: relative;
+    }
+    
+    .tab-visual img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    /* Grid details for features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    
+    .feature-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--cyan);
+      box-shadow: var(--glow-cyan);
+    }
+    
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      color: var(--cyan);
+    }
+    
+    .feature-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.2rem;
+    }
+    
+    .feature-card p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    
+    /* Media queries for responsiveness */
+    @media (max-width: 992px) {
+      .hero-panel {
+        grid-template-columns: 1fr;
+        padding: 32px;
+      }
+      .tab-content {
+        grid-template-columns: 1fr;
+      }
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particle-canvas" aria-hidden="true"></canvas>
+  <div class="scanline-overlay" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <header class="console-header">
+      <div class="header-top">
+        <div class="nav-bar-wrapper">
+          <div class="nav-brand">
+            <img src="/static/images/brand_logo.png" alt="Fraud Shield Logo" class="brand-logo-img" />
+            <span class="brand-name">FRAUD<span class="brand-suffix">SHIELD</span></span>
+          </div>
+          <div class="nav-links-group">
+            <a href="/dashboard" class="nav-link">Console Dashboard</a>
+            <a href="/profile" class="nav-link">Operations Feed</a>
+            <a href="/about" class="nav-link active">About & Architecture</a>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
+          <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+        </div>
+      </div>
+      <div style="margin-top: 16px;">
+        <p class="eyebrow">Multi-Agent Fraud Detection Network</p>
+        <h1 class="glitch-title" data-text="Architecture & Deep Dive">Architecture & Deep Dive</h1>
+        <p class="lede">Discover how AI agents, real-time machine learning, and Neo4j graph databases cooperate to form an impenetrable fraud prevention shield.</p>
+      </div>
+    </header>
+
+    <main class="about-container">
+      <!-- Hero Panel -->
+      <section class="hero-panel panel scan-panel">
+        <div class="hero-text">
+          <div class="eyebrow" style="color: var(--allow);">Overview</div>
+          <h1>Autonomous Fraud Shield</h1>
+          <p>
+            The Multi-Agent Fraud Detection Network (MAFDN) is an advanced, fully autonomous financial intelligence system. 
+            By uniting state-of-the-art machine learning, behavioral profiling, and deep graph relationships, MAFDN exposes hidden transaction fraud in milliseconds.
+          </p>
+          <div class="tech-pills">
+            <span class="tech-pill">LangGraph</span>
+            <span class="tech-pill">FastAPI</span>
+            <span class="tech-pill">Neo4j</span>
+            <span class="tech-pill">Scikit-Learn</span>
+            <span class="tech-pill">Firebase Auth</span>
+            <span class="tech-pill">Apache Kafka</span>
+          </div>
+        </div>
+        <div class="hero-image-wrap">
+          <img src="/static/images/dashboard_UI/landing page UI.png" alt="Fraud Shield Console Interface" />
+        </div>
+      </section>
+
+      <!-- Agent Section -->
+      <section class="tab-section panel scan-panel" id="agent-pipeline-explorer">
+        <div class="section-header">
+          <div class="eyebrow">Intelligence Layer</div>
+          <h2>Multi-Agent Pipeline</h2>
+          <p>Explore the coordinated agents that evaluate transactions synchronously to generate deep composite risk profiles.</p>
+        </div>
+        
+        <div class="tabs-nav" id="agent-tabs">
+          <button class="tab-btn active" data-tab="agent-monitor">Agent 1: Transaction Monitor</button>
+          <button class="tab-btn" data-tab="agent-behavior">Agent 2: Behaviour Analyser</button>
+          <button class="tab-btn" data-tab="agent-compliance">Agent 3: Compliance Logger</button>
+          <button class="tab-btn" data-tab="composite-risk">Composite Risk Scorer</button>
+        </div>
+
+        <div class="tabs-content-wrap">
+          <!-- Agent 1 -->
+          <div class="tab-content active" id="agent-monitor">
+            <div class="tab-description">
+              <h3>Heuristic & Rule-Based Monitoring</h3>
+              <p>
+                The Transaction Monitor acts as the first line of defense. It analyzes the immediate metrics of the incoming transaction—such as absolute transaction amount, channel type (UPI, net banking, crypto), and short-term transaction velocities.
+              </p>
+              <p>
+                By identifying spike patterns, excessive frequencies (e.g. 5 transactions in under 2 minutes), and anomalous amounts, it quickly assigns localized risk metrics and isolates immediate structural threats.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Velocity Indicators</span>
+                <span class="tech-pill">Amount Throttling</span>
+                <span class="tech-pill">Immediate Flags</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/dashboard_UI/AI fraud detection.png" alt="AI Fraud Detection Architecture" />
+            </div>
+          </div>
+
+          <!-- Agent 2 -->
+          <div class="tab-content" id="agent-behavior">
+            <div class="tab-description">
+              <h3>Behavioral Analysis & Profile Alignment</h3>
+              <p>
+                The Behaviour Analyser checks if the transaction matches the historic persona of the user. It evaluates physical parameters such as the device signature (`device_id`), IP Address geographical logs, and login country history.
+              </p>
+              <p>
+                By measuring geovelocity (the impossible geographical distance covered between subsequent transactions) and check-ins from mismatching devices, it detects account takeovers and credential stuffing attempts instantly.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Geovelocity Algorithms</span>
+                <span class="tech-pill">Device Signatures</span>
+                <span class="tech-pill">Persona Profiling</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/dashboard_UI/user behaviour analysis.png" alt="User Behaviour Analysis Dashboard" />
+            </div>
+          </div>
+
+          <!-- Agent 3 -->
+          <div class="tab-content" id="agent-compliance">
+            <div class="tab-description">
+              <h3>Compliance & Regulatory Guardrails</h3>
+              <p>
+                The Compliance Logger evaluates transaction risk from a regulatory standpoint. It scans user histories against standard financial safety thresholds and automatically flags suspicious patterns that warrant reporting.
+              </p>
+              <p>
+                It compiles comprehensive logs and ensures that any OTP triggers or direct block decisions are recorded transparently, complying with strict regulatory auditing standards.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Audit Trail logging</span>
+                <span class="tech-pill">Regulatory Thresholds</span>
+                <span class="tech-pill">Transaction Compliance</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/dashboard_UI/alert pop up.png" alt="Compliance Alert System" />
+            </div>
+          </div>
+
+          <!-- Composite Risk Scorer -->
+          <div class="tab-content" id="composite-risk">
+            <div class="tab-description">
+              <h3>Composite Risk Scoring Engine</h3>
+              <p>
+                Once all individual agents run their tests, their scores are dynamically aggregated by a custom composite scoring engine. 
+              </p>
+              <p>
+                Using a combination of weighted heuristics and machine learning confidence bounds, the system determines the final decision (ALLOW, OTP challenge, or BLOCK) and returns the detailed rationale.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Weighted Ensembles</span>
+                <span class="tech-pill">Real-Time Decision Board</span>
+                <span class="tech-pill">Holographic Gauge</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/dashboard_UI/Risk Scoring.png" alt="Composite Risk Scoring Engine" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Neo4j Graph Section -->
+      <section class="tab-section panel scan-panel" id="graph-explorer">
+        <div class="section-header">
+          <div class="eyebrow" style="color: var(--block);">Relationship Intelligence</div>
+          <h2>Neo4j Graph Database Patterns</h2>
+          <p>Traditional systems look at data points in isolation. We look at connections. Here are the exact relationship-based fraud clusters detected by our Neo4j layer.</p>
+        </div>
+        
+        <div class="tabs-nav" id="graph-tabs">
+          <button class="tab-btn active" data-tab="graph-combined">Combined Network</button>
+          <button class="tab-btn" data-tab="graph-hubs">Coordinated Transfer Hubs</button>
+          <button class="tab-btn" data-tab="graph-rings">Fraud Rings</button>
+          <button class="tab-btn" data-tab="graph-chains">Mule Account Chains</button>
+          <button class="tab-btn" data-tab="graph-devices">Shared Device Clusters</button>
+        </div>
+
+        <div class="tabs-content-wrap">
+          <!-- Combined Network -->
+          <div class="tab-content active" id="graph-combined">
+            <div class="tab-description">
+              <h3>Combined Fraud Network Overview</h3>
+              <p>
+                The complete Neo4j Graph schema ties accounts, physical devices, IP locations, and transactions into a single unified topology. 
+              </p>
+              <p>
+                By mapping both direct transfers and indirect connections (like two unrelated accounts sharing a single MAC address or hardware device), the system exposes coordinated fraud operations that easily bypass simple rule engines.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Multi-hop Topology</span>
+                <span class="tech-pill">Unified Fraud Graph</span>
+                <span class="tech-pill">Network Dynamics</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/neo4j/combined fraud network.jpeg" alt="Combined Neo4j Fraud Network" />
+            </div>
+          </div>
+
+          <!-- Coordinated Hubs -->
+          <div class="tab-content" id="graph-hubs">
+            <div class="tab-description">
+              <h3>Coordinated Transfer Hubs</h3>
+              <p>
+                Detects high-fan-in network hubs where a single receiving account gets rapid, low-value deposits from multiple disparate accounts within a brief timeframe, followed by immediate extraction.
+              </p>
+              <p>
+                This pattern is typical in structured micro-laundering campaigns. Neo4j detects this instantly by querying for node degree anomalies and in-degree velocity spikes.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Degree Centrality</span>
+                <span class="tech-pill">High Fan-In Analysis</span>
+                <span class="tech-pill">Velocity Spikes</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/neo4j/coordinated transfer hubs.jpeg" alt="Coordinated Transfer Hubs in Neo4j" />
+            </div>
+          </div>
+
+          <!-- Fraud Rings -->
+          <div class="tab-content" id="graph-rings">
+            <div class="tab-description">
+              <h3>Cyclic Money Laundering (Fraud Rings)</h3>
+              <p>
+                Fraud rings transfer illicit funds through circular pathways—e.g., Account A transfers to B, B to C, and C transfers back to A. This creates the illusion of organic trade volume while obscuring the true source.
+              </p>
+              <p>
+                Using Neo4j's optimized Cypher queries, our database scans for cyclic paths (loops) with depth lengths of 3 to 6 hops in real-time, shutting down laundering attempts before completion.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Cyclic Queries</span>
+                <span class="tech-pill">Laundering Loops</span>
+                <span class="tech-pill">Graph Centrality</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/neo4j/fraud rings.jpeg" alt="Neo4j Cyclic Fraud Rings" />
+            </div>
+          </div>
+
+          <!-- Mule Chains -->
+          <div class="tab-content" id="graph-chains">
+            <div class="tab-description">
+              <h3>Mule Account Chains</h3>
+              <p>
+                Mule accounts act as linear relay lines where cash is quickly passed along a series of intermediary layers to obfuscate the paper trail before withdrawal.
+              </p>
+              <p>
+                Neo4j tracks these multi-hop linear path structures. By correlating transaction times and matching outgoing values to incoming values within close time-windows, the system exposes intermediate shell accounts.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Linear Path Analysis</span>
+                <span class="tech-pill">Time-correlation Window</span>
+                <span class="tech-pill">Multi-hop Tracking</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/neo4j/Mule account chains.jpeg" alt="Mule Account Chains" />
+            </div>
+          </div>
+
+          <!-- Shared Devices -->
+          <div class="tab-content" id="graph-devices">
+            <div class="tab-description">
+              <h3>Shared Device Clusters</h3>
+              <p>
+                A high indicator of coordinated syndicate fraud occurs when multiple distinct customer accounts login using the exact same physical hardware (`device_id`) or share a single proxy IP block.
+              </p>
+              <p>
+                Neo4j projects bipartite graphs linking `Account` nodes to `Device` nodes. When a device node has a high degree of unique account connections, it is flagged as an illicit fraud farm.
+              </p>
+              <div class="tech-pills">
+                <span class="tech-pill">Bipartite Projection</span>
+                <span class="tech-pill">Hardware Fingerprinting</span>
+                <span class="tech-pill">Syndicate Farms</span>
+              </div>
+            </div>
+            <div class="tab-visual">
+              <img src="/static/images/neo4j/shared device cluster.jpeg" alt="Shared Device Cluster Schema" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Grid Cards -->
+      <section class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Real-time Streaming</h3>
+          <p>Powered by Apache Kafka to consume, analyze, and store high-throughput transaction pipelines with sub-10ms response times.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Secure Gatekeeping</h3>
+          <p>Fully integrated with Firebase Authentication and secure local storage, ensuring only authorized risk officers can access operations feeds.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>Glassmorphic Console</h3>
+          <p>Premium user interface styling leveraging modern dark variables, real-time particle backdrops, and interactive SVG metrics indicators.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="console-footer">
+      <span>Multi-Agent Fraud Detection Network &copy; 2026</span>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initCinematicShell } from '/static/dashboard-fx.js';
+    
+    // Initialize common cinematic shell features (particles, themes, scanlines)
+    initCinematicShell();
+
+    // Helper function to setup interactive tabs
+    function setupTabs(tabsNavId, contentWrapClass) {
+      const tabsNav = document.getElementById(tabsNavId);
+      if (!tabsNav) return;
+      
+      const buttons = tabsNav.querySelectorAll('.tab-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Remove active class from buttons
+          buttons.forEach(b => b.classList.remove('active'));
+          // Add active class to clicked button
+          btn.classList.add('active');
+          
+          const targetTabId = btn.getAttribute('data-tab');
+          
+          // Get all sibling tab-content elements under the parent of this section
+          const section = btn.closest('.tab-section');
+          const contents = section.querySelectorAll('.tab-content');
+          
+          contents.forEach(content => {
+            if (content.id === targetTabId) {
+              content.classList.add('active');
+            } else {
+              content.classList.remove('active');
+            }
+          });
+        });
+      });
+    }
+
+    // Setup both tab systems on page load
+    setupTabs('agent-tabs');
+    setupTabs('graph-tabs');
+  </script>
+</body>
+</html>

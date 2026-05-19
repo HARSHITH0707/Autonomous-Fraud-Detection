@@ -1006,3 +1006,50 @@ SIM-000136,OTP,0.6374,ACC-OTP-1,ACC-MULE-1,45000.0,upi,risk>=0.55,
 SIM-000137,BLOCK,0.9971,ACC-RING-3,ACC-MULE-1,192500.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
 SIM-000138,BLOCK,0.9977,ACC-RING-1,ACC-MULE-1,200000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
 SIM-000139,OTP,0.6374,ACC-OTP-4,ACC-MULE-1,45000.0,upi,risk>=0.55,
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+POC-FOREIGN-LOGIN-001-002,BLOCK,0.9979,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-003,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-004,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-005,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-006,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-007,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+POC-FOREIGN-LOGIN-001-008,BLOCK,0.9976,ACC-PRIMARY,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000120,BLOCK,0.9966,ACC-RING-1,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000121,OTP,0.5607,ACC-OTP-1,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000122,ALLOW,0.1248,ACC-PRIMARY,ACC-KNOWN-2,2300.0,upi,,
+SIM-000123,ALLOW,0.1249,ACC-PRIMARY,ACC-KNOWN-3,2550.0,upi,,
+SIM-000124,OTP,0.5607,ACC-OTP-4,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000125,BLOCK,0.996,ACC-RING-3,ACC-MULE-1,192500.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000126,BLOCK,0.9983,ACC-RING-1,ACC-MULE-1,200000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000127,OTP,0.5607,ACC-OTP-2,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000128,ALLOW,0.0949,ACC-PRIMARY,ACC-KNOWN-2,2550.0,upi,,
+SIM-000129,ALLOW,0.095,ACC-PRIMARY,ACC-KNOWN-3,2800.0,upi,,
+SIM-000130,OTP,0.5607,ACC-OTP-0,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000131,BLOCK,0.998,ACC-RING-3,ACC-MULE-1,207500.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000132,BLOCK,0.997,ACC-RING-1,ACC-MULE-1,185000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000133,OTP,0.5607,ACC-OTP-3,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000134,ALLOW,0.095,ACC-PRIMARY,ACC-KNOWN-2,2800.0,upi,,
+SIM-000135,ALLOW,0.0948,ACC-PRIMARY,ACC-KNOWN-3,1800.0,upi,,
+SIM-000136,OTP,0.6374,ACC-OTP-1,ACC-MULE-1,45000.0,upi,risk>=0.55,
+SIM-000137,BLOCK,0.9971,ACC-RING-3,ACC-MULE-1,192500.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000138,BLOCK,0.9977,ACC-RING-1,ACC-MULE-1,200000.0,upi,risk>=0.8|behaviour-anomaly|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+SIM-000139,OTP,0.6374,ACC-OTP-4,ACC-MULE-1,45000.0,upi,risk>=0.55,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+TXN-WEB-001,ALLOW,0.0949,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+BLOCK-TEST-001,BLOCK,0.8058,ACC-BLOCK-001,ACC-MULE-1,40000.0,upi,risk>=0.8|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+BLOCK-TEST-001,BLOCK,0.8058,ACC-BLOCK-001,ACC-MULE-1,40000.0,upi,risk>=0.8|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+BLOCK-TEST-001,BLOCK,0.8058,ACC-BLOCK-001,ACC-MULE-1,40000.0,upi,risk>=0.8|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+BLOCK-TEST-001,BLOCK,0.8058,ACC-BLOCK-001,ACC-MULE-1,40000.0,upi,risk>=0.8|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
+TXN-WEB-001,ALLOW,0.213,ACC-PRIMARY,ACC-MERCHANT-001,2500.0,upi,,
+OTP-TEST-001,OTP,0.5861,ACC-OTP-001,ACC-MULE-1,40000.0,upi,risk>=0.55|velocity-threshold,
+BLOCK-TEST-001,BLOCK,0.8058,ACC-BLOCK-001,ACC-MULE-1,40000.0,upi,risk>=0.8|velocity-threshold,RBI cyber security framework|RBI digital payment security controls|FIU-IND suspicious transaction retention
