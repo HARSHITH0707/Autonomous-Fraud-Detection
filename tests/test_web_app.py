@@ -23,7 +23,7 @@ def test_process_endpoint_uses_dashboard_service():
     app = create_app()
     client = TestClient(app)
 
-    async def fake_process(_payload):
+    async def fake_process(_payload, uid=None):
         return {
             "transaction": {"transaction_id": "TXN-TEST"},
             "signals": {},

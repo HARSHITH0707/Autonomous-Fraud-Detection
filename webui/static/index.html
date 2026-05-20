@@ -29,12 +29,28 @@
         <div class="header-actions">
           <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
           <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+          <div class="user-profile-badge" id="nav-user-profile" style="display: none; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px;">
+            <div class="avatar-circle" id="nav-avatar" style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #00f5ff, #005f73); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.78rem; font-family: var(--font-num);">U</div>
+            <span class="user-email-text" id="nav-user-email" style="font-size: 0.8rem; color: #e2e8f0; font-weight: 500;">user@example.com</span>
+            <button type="button" id="logout-btn" class="ghost" style="padding: 2px 8px; font-size: 0.72rem; min-height: unset; height: 24px; border: 1px solid rgba(255,45,85,0.3); color: #ff2d55; border-radius: 4px; background: rgba(255,45,85,0.05); cursor: pointer; transition: all 0.3s ease; display: none;">Logout</button>
+          </div>
         </div>
       </div>
       <div>
         <h1 class="glitch-title" data-text="Fraud Shield Console">Fraud Shield Console</h1>
         <p class="lede">Submit transactions, trigger the proof-of-concept fraud path, and watch agent scores, graph
           signals, and final decisions update live.</p>
+        
+        <div id="welcome-banner" style="display: none; align-items: center; gap: 14px; background: linear-gradient(90deg, rgba(0, 245, 255, 0.08), transparent); border-left: 3px solid var(--cyan); padding: 12px 20px; border-radius: 0 8px 8px 0; margin: 16px 0;">
+          <div class="welcome-avatar-ring" style="position: relative; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: rgba(0,245,255,0.1); border: 2px solid var(--cyan); box-shadow: 0 0 10px rgba(0,245,255,0.3);">
+            <span id="welcome-avatar-char" style="font-size: 1.2rem; font-weight: 700; color: #fff; font-family: var(--font-num);">U</span>
+            <span style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; border-radius: 50%; background: var(--allow); border: 2px solid var(--panel); box-shadow: 0 0 6px var(--allow);"></span>
+          </div>
+          <div>
+            <h2 id="welcome-user-text" style="margin: 0; font-size: 1.1rem; color: #fff; font-weight: 600; font-family: var(--font-num); text-shadow: 0 0 6px rgba(255,255,255,0.3);">Welcome, <span style="color: var(--cyan);">User</span></h2>
+            <p style="margin: 2px 0 0; font-size: 0.78rem; color: var(--text-muted);">Risk Operations Clearance: Active · System telemetry loaded.</p>
+          </div>
+        </div>
       </div>
       <div class="hero-metrics">
         <div class="flip-card">

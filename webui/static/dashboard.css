@@ -1457,3 +1457,45 @@ button.ghost.active {
     min-height: 320px;
   }
 }
+
+/* ---- Welcome Banner & Navbar Badge Styles ---- */
+.user-profile-badge {
+  transition: all 0.3s ease;
+}
+.user-profile-badge:hover {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(0, 245, 255, 0.3) !important;
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.15);
+}
+
+.avatar-circle {
+  text-shadow: 0 0 6px rgba(255,255,255,0.5);
+  box-shadow: 0 0 8px rgba(0, 245, 255, 0.3);
+  transition: all 0.3s ease;
+}
+.user-profile-badge:hover .avatar-circle {
+  transform: scale(1.08);
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.6);
+}
+
+#logout-btn:hover {
+  background: rgba(255, 45, 85, 0.15) !important;
+  border-color: rgba(255, 45, 85, 0.6) !important;
+  color: #ff5e7e !important;
+  box-shadow: 0 0 10px rgba(255, 45, 85, 0.2);
+}
+
+#welcome-banner {
+  animation: pulseGlow 3s infinite alternate;
+}
+
+@keyframes pulseGlow {
+  0% {
+    border-left-color: rgba(0, 245, 255, 0.6);
+    box-shadow: inset 5px 0 15px rgba(0, 245, 255, 0.02);
+  }
+  100% {
+    border-left-color: rgba(0, 245, 255, 1);
+    box-shadow: inset 5px 0 25px rgba(0, 245, 255, 0.08);
+  }
+}

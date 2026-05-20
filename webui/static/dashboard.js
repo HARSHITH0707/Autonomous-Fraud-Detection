@@ -242,9 +242,18 @@ function renderGraphOverview(graph) {
 }
 
 async function fetchJson(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    } catch (err) {
+      console.warn("Failed to retrieve ID token:", err);
+    }
+  }
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...options.headers },
   });
   return await response.json();
 }
@@ -295,7 +304,8 @@ async function init() {
   renderGraphOverview(await fetchJson('/api/graph/overview'));
 
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard?token=${encodeURIComponent(token)}`);
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
     if (message.type === 'snapshot') {
@@ -367,6 +377,36 @@ async function init() {
 }
 
 onAuthStateChanged(auth, (user) => {
-  if (!user) window.location.href = '/';
-  else init();
+  if (!user) {
+    window.location.href = '/';
+  } else {
+    // Update navbar user profile badge
+    const navProfile = byId('nav-user-profile');
+    const navEmail = byId('nav-user-email');
+    const navAvatar = byId('nav-avatar');
+    const logoutBtn = byId('logout-btn');
+    if (navProfile) navProfile.style.display = 'flex';
+    if (navEmail) navEmail.textContent = user.email || user.uid.substring(0, 8);
+    if (navAvatar) navAvatar.textContent = (user.email ? user.email[0] : 'U').toUpperCase();
+    if (logoutBtn) {
+      logoutBtn.style.display = 'inline-flex';
+      logoutBtn.onclick = async () => {
+        const { signOut } = await import('./auth.js');
+        await signOut(auth);
+      };
+    }
+
+    // Update welcome banner
+    const welcomeBanner = byId('welcome-banner');
+    const welcomeChar = byId('welcome-avatar-char');
+    const welcomeUser = byId('welcome-user-text');
+    if (welcomeBanner) welcomeBanner.style.display = 'flex';
+    if (welcomeChar) welcomeChar.textContent = (user.email ? user.email[0] : 'U').toUpperCase();
+    if (welcomeUser) {
+      const username = user.email ? user.email.split('@')[0] : 'Operator';
+      welcomeUser.innerHTML = `Welcome back, <span style="color: var(--cyan); text-shadow: var(--glow-cyan);">${username}</span>`;
+    }
+
+    init();
+  }
 });

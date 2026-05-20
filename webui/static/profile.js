@@ -107,9 +107,15 @@ logoutBtn.addEventListener('click', async () => {
 });
 
 onAuthStateChanged(auth, (user) => {
+  const navProfile = byId('nav-user-profile');
+  const navEmail = byId('nav-user-email');
+  const navAvatar = byId('nav-avatar');
   if (user) {
     authSection.style.display = 'none';
     authContent.style.display = 'block';
+    if (navProfile) navProfile.style.display = 'flex';
+    if (navEmail) navEmail.textContent = user.email || user.uid.substring(0, 8);
+    if (navAvatar) navAvatar.textContent = (user.email ? user.email[0] : 'U').toUpperCase();
     logoutBtn.style.display = 'inline-flex';
     byId('user-email').textContent = user.email;
     byId('user-uid').textContent = user.uid;
@@ -120,6 +126,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     authSection.style.display = 'block';
     authContent.style.display = 'none';
+    if (navProfile) navProfile.style.display = 'none';
     logoutBtn.style.display = 'none';
     if (window.wsSocket) {
       window.wsSocket.close();
@@ -222,9 +229,18 @@ function renderFeed(options = {}) {
 }
 
 async function fetchJson(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      headers['Authorization'] = `Bearer ${token}`;
+    } catch (err) {
+      console.warn("Failed to retrieve ID token:", err);
+    }
+  }
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...options.headers },
   });
   return await response.json();
 }
@@ -238,7 +254,8 @@ async function initLiveFeed() {
   renderFeed();
 
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+  const socket = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard?token=${encodeURIComponent(token)}`);
   window.wsSocket = socket;
 
   socket.addEventListener('message', (event) => {

@@ -268,6 +268,11 @@
         <div class="header-actions">
           <button type="button" id="theme-toggle" class="ghost" aria-label="Toggle theme">◑ Light</button>
           <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+          <div class="user-profile-badge" id="nav-user-profile" style="display: none; align-items: center; gap: 10px; background: rgba(255,255,255,0.06); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); margin-left: 10px;">
+            <div class="avatar-circle" id="nav-avatar" style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #00f5ff, #005f73); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.78rem; font-family: var(--font-num);">U</div>
+            <span class="user-email-text" id="nav-user-email" style="font-size: 0.8rem; color: #e2e8f0; font-weight: 500;">user@example.com</span>
+            <button type="button" id="logout-btn" class="ghost" style="padding: 2px 8px; font-size: 0.72rem; min-height: unset; height: 24px; border: 1px solid rgba(255,45,85,0.3); color: #ff2d55; border-radius: 4px; background: rgba(255,45,85,0.05); cursor: pointer; transition: all 0.3s ease; display: none;">Logout</button>
+          </div>
         </div>
       </div>
       <div style="margin-top: 16px;">
@@ -554,9 +559,35 @@
 
   <script type="module">
     import { initCinematicShell } from '/static/dashboard-fx.js';
+    import { auth, onAuthStateChanged } from '/static/auth.js';
     
     // Initialize common cinematic shell features (particles, themes, scanlines)
     initCinematicShell();
+
+    // Dynamically update user profile navbar if authenticated
+    const byId = id => document.getElementById(id);
+    onAuthStateChanged(auth, (user) => {
+      const navProfile = byId('nav-user-profile');
+      const navEmail = byId('nav-user-email');
+      const navAvatar = byId('nav-avatar');
+      const logoutBtn = byId('logout-btn');
+      if (user) {
+        if (navProfile) navProfile.style.display = 'flex';
+        if (navEmail) navEmail.textContent = user.email || user.uid.substring(0, 8);
+        if (navAvatar) navAvatar.textContent = (user.email ? user.email[0] : 'U').toUpperCase();
+        if (logoutBtn) {
+          logoutBtn.style.display = 'inline-flex';
+          logoutBtn.onclick = async () => {
+            const { signOut } = await import('/static/auth.js');
+            await signOut(auth);
+            window.location.href = '/';
+          };
+        }
+      } else {
+        if (navProfile) navProfile.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+      }
+    });
 
     // Helper function to setup interactive tabs
     function setupTabs(tabsNavId, contentWrapClass) {

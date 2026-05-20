@@ -38,6 +38,7 @@ def init_db() -> None:
         );
         CREATE TABLE IF NOT EXISTS transactions (
             transaction_id TEXT PRIMARY KEY,
+            uid TEXT,
             sender_account TEXT,
             receiver_account TEXT,
             amount REAL,
@@ -54,9 +55,13 @@ def init_db() -> None:
             stmt = statement.strip()
             if stmt:
                 cursor.execute(stmt)
+        try:
+            cursor.execute("ALTER TABLE transactions ADD COLUMN uid TEXT;")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
-def save_transaction(result: Dict[str, Any]) -> None:
+def save_transaction(result: Dict[str, Any], uid: str | None = None) -> None:
     txn = result["transaction"]
     
     # 1. Write to Firestore if available
@@ -64,7 +69,7 @@ def save_transaction(result: Dict[str, Any]) -> None:
         try:
             from firebase_admin import firestore
             doc_ref = db_firestore.collection("fraud_transactions").document(txn["transaction_id"])
-            doc_ref.set({
+            doc_data = {
                 "transaction_id": txn["transaction_id"],
                 "sender_account": txn["sender_account"],
                 "receiver_account": txn["receiver_account"],
@@ -73,7 +78,10 @@ def save_transaction(result: Dict[str, Any]) -> None:
                 "composite_risk": result["risk"]["composite_risk"],
                 "full_payload": json.dumps(result),
                 "processed_at": firestore.SERVER_TIMESTAMP
-            }, merge=True)
+            }
+            if uid:
+                doc_data["uid"] = uid
+            doc_ref.set(doc_data, merge=True)
         except Exception as e:
             print(f"Firestore Error: {e}")
 
@@ -81,12 +89,13 @@ def save_transaction(result: Dict[str, Any]) -> None:
     try:
         sql = """
             INSERT OR REPLACE INTO transactions (
-                transaction_id, sender_account, receiver_account,
+                transaction_id, uid, sender_account, receiver_account,
                 amount, decision, composite_risk, full_payload
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             txn["transaction_id"],
+            uid,
             txn["sender_account"],
             txn["receiver_account"],
             txn["amount"],
@@ -101,5 +110,38 @@ def save_transaction(result: Dict[str, Any]) -> None:
             conn.commit()
     except Exception as e:
         print(f"SQL Database Error: {e}")
+
+def get_user_transactions(uid: str, limit: int = 40) -> list[Dict[str, Any]]:
+    # 1. Try fetching from Firestore if available
+    if db_firestore is not None:
+        try:
+            runs_ref = db_firestore.collection("fraud_transactions")
+            query = runs_ref.filter("uid", "==", uid).order_by("processed_at", direction="DESCENDING").limit(limit)
+            docs = query.stream()
+            results = []
+            for doc in docs:
+                data = doc.to_dict()
+                results.append(json.loads(data["full_payload"]))
+            return list(reversed(results))
+        except Exception as e:
+            print(f"Firestore query error, falling back to SQLite: {e}")
+
+    # 2. Fall back to local SQLite
+    try:
+        sql = """
+            SELECT full_payload FROM transactions
+            WHERE uid = ?
+            ORDER BY processed_at DESC
+            LIMIT ?
+        """
+        with _connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, (uid, limit))
+            rows = cursor.fetchall()
+            results = [json.loads(row[0]) for row in rows]
+            return list(reversed(results))
+    except Exception as e:
+        print(f"SQL Database fetch error: {e}")
+        return []
 
 init_db()
