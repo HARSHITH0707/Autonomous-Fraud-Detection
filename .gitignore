@@ -1,14 +1,33 @@
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.pytest_cache/
-.env
+
+# Virtual environment
 venv/
+
+# Environment variables
+.env
+
+# Testing
+.pytest_cache/
+
+# Data / datasets
 data/IEEE-Dataset/
 data/SyntheticFindataset/
-outputs/forensics/
-outputs/*.jsonl
-outputs/*.csv
+
+# Outputs (all generated artifacts)
+outputs/
+
+# Database files
+*.db
+
+# Firebase secrets
 firebase-service-account.json
-firebase-service-account.json
+
+# Dataconnect
+dataconnect/.dataconnect/
+
+# Frontend build / runtime
+webui/public/

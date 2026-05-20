@@ -215,6 +215,10 @@ docker compose run --rm web-app python scripts/run_pipeline.py --mode poc --outp
 docker compose run --rm web-app python scripts/run_pipeline.py --mode stream --limit 50 --output outputs/stream.json
 ```
 
+## Firebase Integration
+
+Firebase Auth is configured via `FIREBASE_*` in `.env`. Transactions are persisted to a **Cloud Firestore** collection named `fraud_transactions` for live tracking in the Firebase Console (falling back to a local SQLite database `local_audit.db` if credentials are not configured).
+
 ## Outputs
 
 The pipeline writes:

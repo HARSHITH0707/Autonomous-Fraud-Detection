@@ -1,28 +1,41 @@
+import json
 import os
 import sqlite3
-import json
-from typing import Any, Dict
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator
 
-# This acts as the SQL Connect integration layer.
-# In a real Firebase Data Connect environment, this would use asyncpg/psycopg2 to connect 
-# to the Cloud SQL PostgreSQL instance, or use the Firebase Admin SDK to execute Data Connect operations.
-DB_PATH = os.environ.get("SQL_CONNECT_URL", "sql_connect_local.db")
+# Local SQLite fallback for audit logs
+SQLITE_PATH = os.environ.get("SQLITE_URL", "local_audit.db")
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+db_firestore = None
+try:
+    import firebase_admin
+    from firebase_admin import credentials, firestore
     
-    # Create User Profiles Table
-    cursor.execute("""
+    if not firebase_admin._apps:
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            firebase_admin.initialize_app()
+            
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        db_firestore = firestore.client()
+except Exception as e:
+    print(f"Firestore init error: {e}")
+
+@contextmanager
+def _connection() -> Iterator[Any]:
+    conn = sqlite3.connect(SQLITE_PATH)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+def init_db() -> None:
+    ddl = """
         CREATE TABLE IF NOT EXISTS users (
             uid TEXT PRIMARY KEY,
             email TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Create Transactions Table
-    cursor.execute("""
+        );
         CREATE TABLE IF NOT EXISTS transactions (
             transaction_id TEXT PRIMARY KEY,
             sender_account TEXT,
@@ -32,33 +45,61 @@ def init_db():
             composite_risk REAL,
             full_payload TEXT,
             processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+        );
+    """
 
-def save_transaction(result: Dict[str, Any]):
-    try:
-        conn = sqlite3.connect(DB_PATH)
+    with _connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        for statement in ddl.split(";"):
+            stmt = statement.strip()
+            if stmt:
+                cursor.execute(stmt)
+        conn.commit()
+
+def save_transaction(result: Dict[str, Any]) -> None:
+    txn = result["transaction"]
+    
+    # 1. Write to Firestore if available
+    if db_firestore is not None:
+        try:
+            from firebase_admin import firestore
+            doc_ref = db_firestore.collection("fraud_transactions").document(txn["transaction_id"])
+            doc_ref.set({
+                "transaction_id": txn["transaction_id"],
+                "sender_account": txn["sender_account"],
+                "receiver_account": txn["receiver_account"],
+                "amount": txn["amount"],
+                "decision": result["decision"]["decision"],
+                "composite_risk": result["risk"]["composite_risk"],
+                "full_payload": json.dumps(result),
+                "processed_at": firestore.SERVER_TIMESTAMP
+            }, merge=True)
+        except Exception as e:
+            print(f"Firestore Error: {e}")
+
+    # 2. Write to local SQLite (Audit log)
+    try:
+        sql = """
             INSERT OR REPLACE INTO transactions (
-                transaction_id, sender_account, receiver_account, 
+                transaction_id, sender_account, receiver_account,
                 amount, decision, composite_risk, full_payload
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            result["transaction"]["transaction_id"],
-            result["transaction"]["sender_account"],
-            result["transaction"]["receiver_account"],
-            result["transaction"]["amount"],
+        """
+        params = (
+            txn["transaction_id"],
+            txn["sender_account"],
+            txn["receiver_account"],
+            txn["amount"],
             result["decision"]["decision"],
             result["risk"]["composite_risk"],
-            json.dumps(result)
-        ))
-        conn.commit()
-        conn.close()
+            json.dumps(result),
+        )
+
+        with _connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            conn.commit()
     except Exception as e:
-        print(f"SQL Connect Error: {e}")
+        print(f"SQL Database Error: {e}")
 
 init_db()

@@ -47,6 +47,8 @@ services:
       FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID}
       FIREBASE_APP_ID: ${FIREBASE_APP_ID}
       FIREBASE_MEASUREMENT_ID: ${FIREBASE_MEASUREMENT_ID}
+      SQLITE_URL: /app/outputs/local_audit.db
+      GOOGLE_APPLICATION_CREDENTIALS: /app/firebase-service-account.json
     volumes:
       - ./data:/app/data
       - ./outputs:/app/outputs
